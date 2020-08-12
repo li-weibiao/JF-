@@ -1,0 +1,273 @@
+1. 虚拟机网络连接方式：
+1.1 桥接模式：
+通过桥接模式网络连接，虚拟机中的虚拟网络适配器可连接到主机系统中
+的物理网络适配器，在桥接模式下，虚拟机ip地址需要与主机在同一个网
+段，如果需要联网，则网关与DNS需要与主机网卡一致。
+1.1. 修改静态IP地址：
+1.2 nat模式：
+使用 NAT 模式网络时，虚拟机在外部网络中不必具有自己的 IP 地址。主
+机系统上会建立单独的专用网络。在默认配置中，虚拟机会在此专用网络
+中通过 DHCP 服务器获取地址。虚拟机和主机系统共享一个网络标识，此
+标识在外部网络中不可见。在NAT模式中，主机网卡直接与虚拟NAT设备
+vi /etc/sysconfig/network-scripts/ifcfg-ens32
+TYPE="Ethernet"
+PROXY_METHOD="none"
+BROWSER_ONLY="no"
+#把默认得dhcp修改为none或者static,表示设置静态IP地址
+BOOTPROTO="none"
+DEFROUTE="yes"
+IPV4_FAILURE_FATAL="no"
+NAME="ens32"
+UUID="eca2f15c-eacc-48cf-9eea-9251567a4b18"
+DEVICE="ens32"
+#设置为yes
+ONBOOT="yes"
+#静态ip地址得配置，参考物理主机得IP配置
+IPADDR=192.168.1.188
+GATEWAY=192.168.1.254
+NETMASK=255.255.255.0
+DNS1=8.8.8.8
+DNS2=114.114.114.114
+相连，然后虚拟NAT设备与虚拟DHCP服务器一起连接在虚拟交换机
+VMnet8上。
+1.3 仅主机模式：
+Host-Only模式其实就是NAT模式去除了虚拟NAT设备，然后使用VMware
+Network Adapter VMnet1虚拟网卡连接VMnet1虚拟交换机来与虚拟机通
+信的，Host-Only模式将虚拟机与外网隔开，使得虚拟机成为一个独立的系
+统，只与主机相互通讯。
+Linux目录结构：
+2. 常用命令详解
+2.1 ls命令：
+2.1.1 长格式显示：
+-l 参数主要是可以看到文件的更详细的信息。
+/boot: 放置linux系统启动时的内核文件以及引导文件。
+/dev： 存放linux系统下的设备文件
+/etc:  系统配置文件存放的目录
+/home: 系统默认的用户家目录
+/lib,lib64: 动态连接共享库
+/media: 挂载可移动的设备
+/opt:  存放第三方软件
+/root: 管理员家目录
+/bin,/sbin: 可执行二进制命令
+/run:  临时文件系统目录
+/srv:  早期存放数据目录
+/tmp:  存放临时文件
+/usr:  应用程序目录
+/var:  存放动态文件，比如日志
+/mnt:  临时挂载目录
+-l   长格式显示文件信息
+-d   显示目录本身信息
+-a   显示全部文件，包括隐藏的文件
+-A   显示除了.或者..以外的文件，包括隐藏文件
+-t   按修改时间进行排序
+管道文件又分为有名管道和无名管道：
+有名管道：
+无名管道：
+2.1.2 显示隐藏文件：
+-a参数可以显示隐藏文件。
+2.2 pwd命令：
+pwd命令主要用于显示或者查看当前所在的目录路径：
+ll /data/
+-rw-r--r--
+第一个横行表示文件类型，常见有
+-  普通文件：
+d  目录
+l  链接文件
+c  字符设备（即串行端口的接口设备，例如伪终端等）
+b  块设备（磁盘）
+s  套接字文件（通常用在网络数据连接）
+p  管道文件
+在磁盘上会存储一个管道文件表示（inode存于内存上），
+但它并不会占据磁盘空间（block），数据并不会存储到磁盘上。
+创建有名管道：
+mkfifo jfedu.pipe
+无名管道不存在管道文件
+ifconfig | grep "inet"
+[root@localhost ~]# ls -a
+.     .bash_history .bashr
+..    .bash_logout  .cache
+.ansible .bash_profile .cshrc
+2.3 echo命令：
+输出指定得字符或者变量
+2.4 alias命令:
+设置别名，便于执行相关命令。
+3. 文件管理：
+3.1 cat命令：
+cat命令可以用于查看文件内容，或者利用重定向创建文件。
+3.1.1 查看文件内容：
+或追加文件内容：
+实例：
+3.1.2 创建文件：
+查看当前环境设置的别名：
+alias
+设置临时别名（关闭shell就失效了）：
+alias v32='vim /etc/sysconfig/network-scripts/ifcfg-ens32'
+设置永久别名。
+vim ~/.bashrc
+alias v32='vim /etc/sysconfig/network-scripts/ifcfg-ens32'
+cat、cp、mv、touch、mkdir、less、more、gzip、bzip2、tar
+-n或--number：从1开始对所有输出的行数编号；
+-b或--number-nonblank：对于空白行不编号；
+-s或--squeeze-blank：当遇到有连续两行以上的空白行，就代换为一行的空
+白行；
+-A：行尾显示“$”；
+cat -n /etc/fstab
+3.2 cp命令：
+用来将一个或多个源文件或者目录复制到指定的目的文件或目录。
+3.2.1 复制更新的文件：
+【-u】只复制源文件有更新的，否则不执行。
+方法一：
+EOF表示结束符，可以自定义，如下
+#以覆盖得方式写文件
+[root@localhost ~]# cat > jfedu.txt << eof
+> this
+> is
+> jfedu
+> eof
+#以追加得方式写文件
+[root@localhost ~]# cat >> jfedu.txt <<f
+> this is new line
+> f
+语法：
+cp [OPTION]... SOURCE DEST
+option:
+-a：此参数的效果和同时指定"-dpR"参数相同；
+-d：可复制符号连接，不会破坏链接文件与源文件的链接关系。
+-f：强行复制文件或目录，不论目标文件或目录是否已存在；
+-i：覆盖既有文件之前先询问用户；
+-l：对源文件建立硬连接，而非复制文件；
+-p：保留源文件或目录的属性；
+-R/r：递归处理，将指定目录下的所有文件与子目录一并处理；
+-s：对源文件建立符号连接，而非复制文件（指定绝对路径）；
+-u：使用这项参数后只会在源文件的更改时间较目标文件要新的时候或是目标文
+件并不存在时，才复制文件；
+-S：在备份文件时，用指定的后缀“SUFFIX”代替文件的默认后缀~；
+-b：覆盖已存在的文件目标前将目标文件备份,后缀默认是~；
+-v：详细显示命令执行的操作。
+3.2.2 复制软连接：
+【-d|-a】复制软连接，这里要注意创建软连接时最好为绝对路径，否则可
+能会出现失效的软连接。
+3.2.3 备份复制：
+【-S】复制同名文件到目的目录时，对源文件进行备份，且自定义备份文
+件后缀名。
+3.2.4 通用参数：
+【-a 】如果参数都记不住，就记住它吧，可以实现递归，复制软连接，保
+留文件属性。
+#第一次将lutixia.txt复制到data目录：
+[root@localhost ~]# cp lutixia.txt /data/
+#更新文件
+[root@localhost ~]# echo "this is update" > lutixia.txt
+#-u参数复制，提示是否覆盖，如果不想提示，可以使用\cp替换cp
+[root@localhost ~]# cp -u lutixia.txt /data/
+cp: overwrite ‘/data/lutixia.txt’? y
+[root@localhost ~]# cat /data/lutixia.txt
+this is update
+#不更新文件，再次复制，并没有进行替换：
+[root@localhost ~]# cp -u lutixia.txt /data/
+[root@localhost ~]# ln -s /root/lutixia2.txt lutixia3.txt
+# 如果直接复制，不带参数，会导致软连接失效，直接创建普通文件
+[root@localhost ~]# cp lutixia3.txt /data/
+# 加上参数：
+[root@localhost ~]# cp -d lutixia3.txt /data/
+#第一次复制
+[root@localhost ~]# cp lutixia2.txt /data/
+#第二次复制，对源文件进行备份：
+[root@localhost ~]# \cp -S ".`date +%F`" lutixia2.txt
+/data/
+3.3 touch命令：
+用户创建普通文件或者修改文件时间
+3.4 mkdir命令：
+创建目录
+3.4.1 递归创建目录：
+-p 自动创建上级目录，如果上级目录不存在；如果目录已经，则不创
+建，不会提示报错。
+3.4.2 指定目录权限：
+-m 可以指定创建目录时的权限。
+3.5 less命令：
+查看大文件，分屏显示，可以使用键盘翻屏
+3.6 more命令：
+也可以实现分屏显示。
+touch  file
+-a   只修改访问时间（属性更改时间也会变）
+-m   只更改修改时间（属性更改时间也会变）
+stat file 查看文件的属性
+mkdir -p /data/lutixia/lutixia
+mkdir -m 700 /data/lutixia2
+[root@localhost ~]# mkdir -m 700 /data/lutixia2
+[root@localhost ~]# ll /data/lutixia2 -d
+drwx------ 2 root root 6 11月 27 11:34 /data/lutixia2
+空格  显示下一屏内容
+b    显示上一屏内容
+f    显示下一屏内容
+3. 7 gzip命令：
+压缩文件，默认压缩完会删除源文件。
+3. 8 bzip2命令：
+压缩文件,默认压缩完会删除源文件，不支持递归压缩目录文件。
+空格  显示下一屏内容
+b    显示上一屏内容
+f    显示下两屏内容
+gzip [option]  file
+ -c 将压缩结果通过重定向至其他文件，以此保留源文件。
+ -d 解压缩
+ -r   递归压缩目录内文件，只压缩文件，不会压缩目录
+ -1~9  指定压缩级别，-1最快压缩，-9最大压缩，更消耗cpu，默认
+级别是6.
+实例：
+压缩一个文件：
+gzip file
+压缩一个目录下的所有文件,并显示过程：
+gzip -rv lutixia/
+压缩一个文件，并保留源文件：
+gzip -c file > file.gz
+解压一个文件：
+gunzip file.gz
+gzip -d file.gz
+不解压，直接查看文件内容：
+zcat file.gz
+3.9 zip命令：
+压缩文件，执行不会删除源文件。
+3.10 tar命令：
+归档工具，用来打包和备份。
+首先要弄清两个概念：打包和压缩。
+打包是指将一大堆文件或目录变成一个总的文件；
+压缩则是将一个大的文件通过一些压缩算法变成一个小文件。
+bzip2 [option] file
+   -k   保留源文件
+   -d   解压缩
+   -1~9  定义压缩级别
+   
+实例：
+压缩文件，并保留源文件：
+bzip2 -k file
+解压缩文件：
+bzip -d  file.bz2
+不解压，直接查看文件内容：
+bzcat file.bz2
+# 压缩单个文件：
+zip fstab.zip fstab
+# 指定压缩级别：
+zip -9 fstab2.zip fstab
+# 压缩目录，并删除源文件：
+zip -rm jfedu.zip jfedu/
+-r: 递归
+-m: 移除源文件
+tar [option] file
+ -c   创建新的tar包
+ -f   指定tar包名
+ -r   添加文件到归档文件，须与f结合使用，指定归档文件
+ -z   指定gzip压缩tar包，后缀为.tar.gz
+  -j 指定bzip2解压缩文件，后缀为.tar.bz2
+ -p   保留文件的权限和属性
+ --remove-files   归档后删除源文件
+ 
+实例：
+创建一个新的归档文件：
+tar cvf lutixia.tar file [dirs]
+在一个归档文件中添加新的文件：
+tar rf lutixia.tar newfile
+提取归档文件，可以使用-C，提取到指定目录：
+tar xf lutixia.tar
+更新归档文件中的newfile个文件
+tar uf lutixia.tar newfile
+列出归档文件中的内容，但是如果有更新文件，显示的会有所误差：
+tar tf lutixia.tar
