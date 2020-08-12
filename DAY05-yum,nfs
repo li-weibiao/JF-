@@ -1,0 +1,172 @@
+1. YUM管理：
+yum命令是在Fedora和RedHat以及SUSE中基于rpm的软件包管理器，它
+可以使系统管理人员交互和自动化地更细与管理RPM软件包，能够从指定
+的服务器自动下载RPM包并且安装，可以自动处理依赖性关系，并且一次
+安装所有依赖的软体包，无须繁琐地一次次下载、安装。
+1.1 yum工作原理：
+当我们执行 yum install nginx -y ，yum会先访问本地缓存，如果有直
+接安装，如果没有，则通过元数据找到该软件包，通过该软件内部数据库
+的提示，找到相应的依赖包，然后继续查找元数据中是否有这些依赖包，
+如果没有会提示依赖包没有镜像提供。如果nginx软件包和依赖包都找到
+了，就根据配置文件中的url去下载。
+1.2 配置网络源：
+# 安装163的yum源：
+wget -O /etc/yum.repos.d/CentOS7-Base-163.repo
+http://mirrors.163.com/.help/CentOS7-Base-163.repo
+# 安装阿里云的yum源：
+wget -O /etc/yum.repos.d/CentOS-Base.repo
+http://mirrors.aliyun.com/repo/Centos-7.repo
+1.3 配置本地源：
+1.4 自动配置仓库：
+# 搜狐没有现成的yum源文件下载，需要自己配置：
+[sohu]
+name=Centos-$releasever-sohu
+baseurl=http://mirrors.sohu.com/centos/$releasever/os/$bas
+earch
+gpgcheck=1
+gpgkey=http://mirrors.sohu.com/centos/$releasever/os/$base
+arch/RPM-GPG-KEY-CentOS-$releasever
+重新执行: yum makecache
+mkdir /mnt/cdrom
+mount /dev/cdrom /mnt/cdrom
+vim /etc/yum.repos.d/centos-7-local.repo
+[local]
+name=centos-$releasever-local
+baseurl=file:///mnt/cdrom
+gpgcheck=1
+gpgkey=file:///mnt/cdrom/RPM-GPG-KEY-CentOS-$releasever
+# 安装yum的扩展包：
+yum install yum-utils -y
+# 自动配置国内epel仓库：
+yum-config-manager --add-
+repo=https://mirrors.tuna.tsinghua.edu.cn/epel/7/x86_64/
+# 手工添加秘钥：
+vim
+/etc/yum.repos.d/mirrors.tuna.tsinghua.edu.cn_epel_7_x86_6
+4_.repo
+[epel]
+name= epel 7 repo
+1.5 禁用/启用仓库：
+1.6 yum常用命令：
+2. 同步外网源：
+在企业实际应用场景中，仅仅靠光盘里面的RPM软件包是不能满足需要，
+我们可以把外网的YUM源中的所有软件包同步至本地，可以完善本地YUM
+源的软件包数量及完整性。
+baseurl=https://mirrors.tuna.tsinghua.edu.cn/epel/7/x86_64
+/
+gpgcheck=1
+gpgkey=https://mirrors.tuna.tsinghua.edu.cn/epel/RPM-GPG-
+KEY-EPEL-7
+enabled=1
+# epel 是仓库的id [epel]
+yum-config-manager --disable epel
+yum-config-manager --enable epel
+# 查看仓库状态：
+yum repolist all
+yum repolist {all|enabled|disabled}     列出所有/已启用/
+已禁用的yum源
+yum list {all|installed|avaliable}     列出所有/已安装/
+可安装的软件包
+yum grouplist 列出所有组包
+yum info package              显示某一个软件包
+的信息
+yum install package             安装软件包
+yum groupinstall  "grouppackage" 安装组包
+yum reinstall package            重新安装软件
+包
+yum remove|erase package          卸载软件包
+yum provides files       查询某个文件是哪
+个软件包生成的
+yum search file 查询某个文件是哪
+个软件包生成的
+2.1 安装reposync工具：
+2.2 同步源：
+3. NFS文件共享服务器：
+NFS是network file sytem的缩写，他最大的特点就是可以通过网络，让不
+同的机器，不同的系统实现文件共享。NFS客户端可以将NFS服务器共享的
+目录挂载在本地的文件系统中，访问目录就如同访问自己本地目录一样。
+3.1 NFS工作原理：
+1. 首先NFS服务器端开启rpcbind；
+yum install yum-utils createrepo -y
+# 创建本地目录:
+mkdir /data/{centos,epel}
+# 同步yum源：
+reposync -r base -r updates -p /data/centos/
+# 生成元数据：
+createrepo /data/centos
+# 结合前面所学制作本地源，如果想让其他服务器使用该源，后面可以结合
+nginx发布。
+2. 然后服务端开启NFS服务，这时NFS的各项功能都需要向RPC服务注
+册，这时rpc会通知portmap模块将可用的端口分配给statd，rquotad
+等;
+3. 然后NFS客户端RPC服务就会通过网络向NFS服务端的RPC服务的111端
+口发出NFS文件存取功能的询问请求。
+4. NFS服务端的RPC服务找到对应的已注册的NFSdaemon端口后，通知
+NFS客户端的RPC服务。
+5. 此时NFS客户端就可获取到nfs服务端各个进程的正确端口，然后通过
+客户端rpc就直接与NFS服务器的rpc进行存取数据了（rpc知道了nfs的
+具体端口，就可以实现远程调用，即传输）。
+3.2 NFS安装部署：
+服务器和客户端都关闭防火墙，装好nfs服务组件：
+3.2.1 配置服务端：
+编辑/etc/exports文件
+导出（广播）编辑的文件，并重启rpc和nfs服务
+nfs服务端：192.168.75.130
+nfs客户端：192.168.75.135
+# 关闭防火墙：
+systemctl stop firewalld && systemctl disable firewalld
+# 临时关闭selinux:
+setenforce 0
+# 永久关闭selinux:
+sed -i 's/=enforcring/=disabled/' /etc/selinux/config
+# 安装nfs服务组件：
+yum -y intall nfs-utils
+/data/jfedu  192.168.75.0/24(rw,sync)
+# 格式：
+# /data/jfedu  要共享的目录，需要存在
+# 192.168.75.0/24 谁能挂载使用，可以是网段，也可以指定具体ip
+# (rw,sync) 挂载的一些参数，rw表示挂载为可读可写，sync表
+示同步
+3.2.2 配置客户端：
+可用showmount搜索网络中可用的共享文件
+创建目录，用于挂载
+挂载
+挂载完成之后，进入目录，可能会发现无法对目录中的文件进行修改。
+这主要是因为客户端访问服务器时，身份被压缩成nobody，相对服务器文
+件系统来说，就是其他用户。所以要想编辑，需要在服务端对文件授权或
+者更改exports文件，设置no_root_squash（不压缩客户端root身份）。
+3.3 解读exports文件：
+systemctl restart rpcbind
+systemctl restart nfs
+exportfs -r
+showmount -e 192.168.75.130
+mkdir /mnt/nfs
+mount -t nfs 192.168.75.130:/data/jfedu /mnt/nfs
+#推荐使用：
+mount -t nfs -o soft,timeo=1  192.168.75.130:/data/jfedu
+/mnt/nfs
+soft： 软挂载，遇到报错会终止挂载，并返回信息，默认是硬挂载，一直尝
+试挂载。
+timeo: 超时时间，如果不设置，一直链接，可以设置小点
+3.4 报错处理：
+3.4.1 卸载时报错：
+[root@localhost ~]# exportfs -v
+/data/jfedu 
+192.168.75.0/24(sync,wdelay,hide,no_subtree_check,sec=sys,
+rw,secure,no_root_squash,no_all_squash)
+其中：
+rw:可读可写
+ro:仅可读
+sync:是指数据同步写入内存和磁盘
+root_squash:如果客户端用root身份访问，则被压缩成nobody,权限也将受
+到限制。
+no_root_squash:也就是不压缩，客户端使用root身份登录，全有所有权
+限，很危险。
+all_squash:不管访问者是什么身份，包括root，全部压缩至匿名用户。
+no_all_squash:保留访问用户的身份uid以及gid,一般只能查看，不能修
+改，权限问题，但是可以强制保存。
+umount.nfs4: /mnt/jfedu: device is busy
+umount -l /mnt/jfedu  强行解除挂载
+或者使用
+fuser -m /mnt/data 将会显示使用这个模块的pid
+fuser -mk /mnt/data 将会直接kill那个pid
