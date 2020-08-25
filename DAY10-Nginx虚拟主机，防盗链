@@ -1,0 +1,300 @@
+1. Nginx虚拟主机:
+1.1 虚拟主机作用：
+虚拟主机提供了在同一台服务器上运行多个网站的功能。
+1.2 虚拟主机的三种模式:
+基于多域名方式配置虚拟主机
+基于多端口配置虚拟主机
+基于多ip配置虚拟主机
+基于多域名的虚拟主机是最常见的一种虚拟主机。
+只需配置你的DNS服务器，将每个主机名映射到正确的IP地址，然后配置
+Nginx服务器，令其识别不同的主机名就可以了。
+基于多端口的虚拟主机，可以使用同一个ip，通过访问不同的端口来访
+问。
+基于多IP的虚拟主机可以通过添加多个网卡或者在一块物理网卡上绑定多
+个IP地址来实现，
+ps:如果没有特殊要求，最好还是使用基于多域名的虚拟主机。
+1.2.1 多域名配置虚拟主机：
+1.2.1.1 配置hosts文件：
+hosts文件：在本机计算机上面，配置本地的ip地址和域名映射关系，通常
+用于测试。
+网域名称系统（DNS，Domain Name System，将域名和IP地址相互映射的一
+个分布式数据库）是因特网的一项核
+心服务，它作为可以将域名和IP地址相互映射的一个分布式数据库，能够使人更
+方便地访问互联网，而不用去记
+住能够被机器直接读取的IP地址数串。
+参考：
+https://baike.baidu.com/item/%E5%9F%9F%E5%90%8D/86062?
+fr=aladdin
+Windows 本地hosts文件
+Linux 本地hosts 文件
+1.2.1.2 创建虚拟主机配置文件：
+C:\Windows\System32\drivers\etc\hosts
+192.168.75.132  www.jfedu.com
+vim /etc/hosts
+192.168.75.132  www.jfedu.com
+#在http指定块中添加：
+include /usr/local/nginx/conf/vhost/*.conf;
+#创建配置主机配置文件
+mkdir -p /usr/local/nginx/conf/vhost
+vim /usr/local/nginx/conf/vhost/www.jfedu.com.conf
+server {
+ listen 80;
+ server_name www.jfedu.com;
+ location / {
+   root /usr/local/nginx/html/jfedu;
+   index index.html index.htm;
+ }
+}
+vim /usr/local/nginx/conf/vhost/www.jf.com.conf
+server {
+ listen 80;
+ server_name www.jf.com;
+ location / {
+   root /usr/local/nginx/html/jf;
+   index index.html index.htm;
+ }
+}
+1.2.2 多端口配置虚拟主机：
+1.2.3 多IP配置虚拟主机：
+2. 常用模块：
+1. access模块：
+server {
+   listen 8080;
+   server_name www.jfedu.com;
+   location / {
+       root /usr/share/nginx/html/jfedu;
+       index index.html;
+       }
+   }
+cp /etc/sysconfig/network-scripts/ifcfg-ens32{,:1}
+vim /etc/sysconfig/network-scripts/ifcfg-ens32:1
+修改以下信息:
+NAME="ens32:1"
+DEVICE="ens32:1"
+IPADDR=192.168.75.188
+# 重启服务：
+systemctl restart network
+server {
+   listen 192.168.75.188:80;
+   server_name www.jfedu.com;
+   location / {
+       root /usr/share/nginx/html/jfedu;
+       index index.html;
+       }
+   }
+   
+重启nginx服务：
+systemctl restart nginx
+访问控制模块 ，该模块可以实现简单的防火墙功能，过滤特定的主机。这
+个模块在我们编译nginx时会默认编译进nginx的二进制文件中。
+语法:
+allow: 允许访问的IP或者网段。
+deny: 拒绝访问的ip或者网段。
+从语法上看，它允许配置在http指令块中，server指令块中还有locatio指
+令块中，这三者的作用域有所不同。
+如果配置在http指令段中，将对所有server(虚拟主机)生效；
+配置在server指令段中，对当前虚拟主机生效；
+配置在location指令块中，对匹配到的目录生效。
+ps: 如果server指令块，location指令块没有配置限制指令，那么将会继承
+http的限制指令，但是一旦配置了会覆盖http的限制指令。
+或者说作用域小的配置会覆盖作用域大的配置。
+1.2 http指令块配置：
+对单ip进行限制：
+在http指令块下配置单ip限制；
+Syntax: allow address | CIDR | unix: | all;
+Default: —
+Context: http, server, location, limit_except
+Syntax: deny address | CIDR | unix: | all;
+Default: —
+Context: http, server, location, limit_except
+http {
+ include    mime.types;
+ default_type application/octet-stream;
+ # 限制192.168.75.135这个ip访问
+ deny 192.168.75.135;
+ ...
+}
+ps: 配置完记得重载配置文件。
+在自己服务上访问：
+在192.168.75.135机器上访问：
+可以看到只对135这个ip生效了，如果有配置虚拟主机，那么这个ip将都不
+能访问。
+对网段进行限制：
+如果想让整个网段都不能访问，只需要将这个ip改为网段即可。
+在自己服务器上访问；
+在192.168.75.135机器上访问：
+可以看到都不能访问了，对整个网段的限制已生效。
+/usr/local/nginx/sbin/nginx -s reload
+[root@localhost ~]# curl -I 192.168.75.130
+HTTP/1.1 200 OK
+Server: nginx/1.16.0
+Date: Mon, 22 Jul 2019 02:24:19 GMT
+Content-Type: text/html
+[root@localhost ~]# curl -I 192.168.75.130
+HTTP/1.1 403 Forbidden
+Server: nginx/1.16.0
+http {
+ include    mime.types;
+ default_type application/octet-stream;
+ # 将ip改为网段
+ deny 192.168.75.0/24;
+ ...
+}
+[root@localhost ~]# curl -I 192.168.75.130
+HTTP/1.1 403 Forbidden
+Server: nginx/1.16.0
+1.3 server指令块配置：
+配置方法都是一样的，只是作用范围不同。
+对单ip进行限制：
+在自己服务器上访问：
+在192.168.75.135机器上访问：
+限制网段同上。
+1.4 location指令块配置：
+在location指令块配置访问控制。
+这种配置是最多的，因为有时候我们要限制用户对某些文件或者目录的访
+问，这些文件通常是比较重要的或者私密的。
+server {
+   listen    80;
+   server_name localhost;
+   deny 192.168.75.135;
+   ...
+ }
+[root@localhost ~]# curl -I 192.168.75.130
+HTTP/1.1 200 OK
+Server: nginx/1.16.0
+Date: Mon, 22 Jul 2019 02:45:06 GMT
+[root@localhost ~]# curl -I 192.168.75.130
+HTTP/1.1 403 Forbidden
+Server: nginx/1.16.0
+在本机访问：
+在192.168.75.135上访问：
+1.5 白名单设置：
+通过指定限制某个IP或者网段，这些形式是黑名单式的。
+但如果想某些服务或者文件只针对于某些IP或者网段（通常是内网）开
+放，那么可以使用白名单，默认拒绝，指定的放行。
+实例：
+在本机访问：
+在192.168.75.135上访问：
+可以看到，现在只有自己可以访问了，其他都被拒绝了。
+2. auth_basic模块：
+用户认证模块，对访问目录进行加密，需要用户权限认证：
+location /secret {
+       deny 192.168.75.135;
+   }
+创建目录以及测试文件：
+[root@localhost ~]# mkdir -p /usr/local/nginx/html/secret
+[root@localhost ~]# echo "this is secret" >
+/usr/local/nginx/html/secret/index.html
+[root@localhost ~]# curl 192.168.75.130/secret/index.html
+this is secret
+location /secret {
+       allow 192.168.75.130;
+       deny all;
+   }
+[root@localhost ~]# /usr/local/nginx/sbin/nginx -s reload
+[root@localhost ~]# curl 192.168.75.130/secret/index.html
+this is secret
+这个功能特性是由ngx_http_auth_basic_module提供的，默认编译nginx
+时会编译好，主要有以下两个指令。
+语法：
+认证的配置可以在http指令块，server指令块，location指令块配置。
+auth_basic string ：定义认证的字符串，会通过响应报文返给客户端，也
+可以通过这个指令关闭认证。
+auth_basic_user_file file ：定义认证文件。
+2.1 对指定目录加密：
+生成认证文件：
+重启服务后，访问验证：
+现在当我们访问img目录时，需要输入用户名及密码。
+它不仅可以设置访问指定目录时认证，还可以直接在访问首页时认证。
+Syntax: auth_basic string | off;
+Default: auth_basic off;
+Context: http, server, location, limit_except
+Syntax: auth_basic_user_file file;
+Default: —
+Context: http, server, location, limit_except
+# 对匹配目录加密：
+location /img {
+    auth_basic "User Auth";
+    auth_basic_user_file
+/usr/local/nginx/conf/auth.passwd;
+   }
+auth_basic 设置名字
+auth_basic_user_file 用户认证文件放置路径
+yum install httpd-tools -y
+htpasswd -c /usr/local/nginx/conf/auth.passwd admin
+输入两次密码确定。
+如果需要关闭可以使用auth_basic off;或者直接将这两段注释掉。
+htpasswd命令工具：
+2.2 对首页加密：
+3. stub_status 模块：
+状态查看模块 ，该模块可以 输出nginx的基本状态信息 。
+语法：
+htpasswd(选项)(参数)
+选项
+-c：创建一个加密文件；
+-m：默认采用MD5算法对密码进行加密；
+-d：采用CRYPT算法对密码进行加密；
+-p：不对密码进行进行加密，即明文密码；
+-s：采用SHA算法对密码进行加密；
+-b：在命令行中一并输入用户名和密码而不是根据提示输入密码；
+-D：删除指定的用户。
+添加用户名及密码：
+htpasswd -b /usr/local/nginx/conf/auth.passwd lutixia
+lutixia666
+更新密码：
+htpasswd -D /usr/local/nginx/conf/auth.passwd lutixia
+htpasswd -b /usr/local/nginx/conf/auth.passwd lutixia
+lutixia777
+location / {
+    auth_basic "User Auth";
+    auth_basic_user_file
+/usr/local/nginx/conf/auth.passwd;
+   }
+Syntax: stub_status;
+Default: —
+Context: server, location
+3.1 配置：
+4. referer 模块：
+该模块可以进行防盗链设置。
+盗链的含义是网站内容本身不在自己公司的服务器上，而通过技术手段，
+直接调用其他公司的服务器网站数据，而向最终用户提供此内容。
+语法：
+4.1 配置防盗链：
+在130服务器上配置nginx防盗链：
+location = /status {
+ stub_status;
+ allow 192.168.75.130;
+ deny all;
+}
+Active connections:当前活动状态的连接数
+accepts：统计总值，已经接受的客户端请求的总数
+handled：统计总值，已经处理完成的客户端请求的总数
+requests：统计总值，客户端发来的总的请求数
+Reading：当前状态，正在读取客户端请求报文首部的连接的连接数
+Writing：当前状态，正在向客户端发送响应报文过程中的连接数
+Waiting：当前状态，正在等待客户端发出请求的空闲连接数
+Syntax: valid_referers none | blocked | server_names |
+string ...;
+Default: —
+Context: server, location
+防盗链测试:
+找另外一台测试服务器，基于Nginx发布如下test.html页面，代码如下，
+去调用130官网的test.png图片，由于130官网设置了防盗链，所以无法访
+问该图片。
+location ~* \.(gif|jpg|png|swf|flv)$ {
+       valid_referers none blocked  *.jfedu.net;
+       root  /usr/share/nginx/html;
+        if ($invalid_referer) {
+           return 403;
+           }
+    }
+valid_referers 表示合法的referers设置
+none： 表示没有referers，直接通过浏览器或者其他工具访问。
+blocked： 表示有referers，但是被代理服务器或者防火墙隐藏；
+lutixia.net： 表示通过lutixia.net访问的referers；
+*.jfedu.net: 表示通过*.jfedu.net访问的referers，*表示任意host
+主机。
+<html>
+<h1>welcome to nginx</h1>
+<img src="http://192.168.75.130/test.png">
+</html>
