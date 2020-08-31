@@ -1,0 +1,647 @@
+1. Nginx反向代理：
+1.1 反向代理概念：
+反向代理是nginx的一个重要功能，在编译安装时会默认编译该模块。在配
+置文件中主要配置proxy_pass指令。
+代理服务器接受客户端的请求，然后把请求代理给后端真实服务器进行处
+理，然后再将服务器的响应结果返给客户端。
+1.2 反向代理作用：
+与正向代理（正向代理主要是代理客户端的请求）相反，反向代理主要是
+代理服务器返回的数据，所以它的作用主要有以下两点：
+1. 可以防止内部服务器被恶意攻击（内部服务器对客户端不可见）。
+2. 为负载均衡和动静分离提供技术支持。
+1.3 反向代理语法：
+代理服务器的协议，可支持http与https。
+地址可以指定为域名或IP地址，以及可选端口。
+例如：
+1.4 实例一：
+location和proxy_pass都不带uri路径。
+代理服务器：192.168.0.109
+Syntax: proxy_pass URL;
+Default: —
+Context: location, if in location, limit_except
+proxy_pass http://192.168.0.188;
+proxy_pass http://192.168.0.188:8080;
+proxy_pass http://localhost:9000/uri/;
+后端服务器：192.168.0.114
+1.4.1 验证：
+1.5 实例二：
+proxy_pass没有设置uri路径，但是代理服务器的location 有uri，那么代
+理服务器将把客户端请求的地址传递给后端服务器。
+代理服务器的简单配置：
+location / {
+     proxy_pass http://192.168.0.114;
+   }    
+# proxy_pass 转发请求给后端服务器
+后端服务器的配置：
+location / {
+     echo $host;
+     root  html;
+     index index.html index.htm;
+   }
+# echo $host 这个主要是来看下后端接收到的Host是什么。
+[root@localhost ~]# curl 192.168.0.109
+192.168.0.114
+# 获取的请求Host是后端服务器ip，去掉该指令，验证请求结果。
+[root@localhost ~]# curl 192.168.0.109
+            this is 114 page
+# 可以看到我们访问的是109，但是得到的结果是114的发布目录文件。
+1.5.1 验证：
+1.6 实例三：
+如果proxy_pass设置了uri路径，则需要注意，此时，proxy_pass指令所
+指定的uri会覆盖location的uri。
+# 代理服务器的配置：
+location /document/data/ {
+     proxy_pass http://192.168.0.114;
+}
+# 后端服务器的配置：
+location / {
+     # echo $host;
+     root  html/uri;
+     index index.html index.htm;
+   }
+[root@localhost ~]# mkdir -p
+/usr/local/nginx/html/uri/document/data/
+[root@localhost ~]# echo "this is
+/usr/local/nginx/html/uri/document/data/ test" >
+/usr/local/nginx/html/uri/document/data/index.html
+[root@localhost ~]# curl 192.168.0.109/document/data/
+this is /usr/local/nginx/html/uri/document/data/ test
+# 完整请求路径 是在后端服务器的/usr/local/nginx/html/uri 后追加
+客户端请求的路径 /document/data/
+1.6.1 验证：
+这次加上location的uri，后端服务器加个子目录：
+# 代理服务器的配置：
+location / {
+     proxy_pass http://192.168.0.114/data/;
+   }
+   
+# 后端服务器的配置：
+location / {
+     root  html;
+     index index.html index.htm;
+   }
+[root@localhost ~]# mkdir -p /usr/local/nginx/html/data/
+[root@localhost ~]# echo "this is
+/usr/local/nginx/html/data test。" >
+/usr/local/nginx/html/data/index.html
+[root@localhost ~]# curl 192.168.0.109
+this is /usr/local/nginx/html/data test。
+这样看好像很正常，但是稍作修改。
+代理服务器的配置：
+location /document/ {
+     proxy_pass http://192.168.0.114/data/;
+}
+后端服务器的配置：
+location / {
+      #echo $host;
+     root  html;
+     index index.html index.htm;
+   }
+1.6.2 再次验证：
+1.7 获取远程客户端真实ip地址：
+2. 缓存代理服务器实战：
+在代理服务器的磁盘中保存请求目标的内容，加快响应速度，减少应用服
+务器（后端服务器）上的资源开销，比如多客户端请求相同的资源，代理
+缓存命中后，对于应用服务器来说，只发生了一次资源调度。
+而浏览器上的缓存配置，一般来说是用来减少本地IO的，请求目标的内容
+会存放在浏览器本地。
+[root@localhost ~]# curl 192.168.0.109/document/
+this is /usr/local/nginx/html/data test。
+# 该路径还是 proxy_pass 指定的uri路径，与location 没有关系了！
+# 代理服务器配置：
+location / {
+     proxy_pass http://192.168.0.114;
+     proxy_set_header Host $host;
+     proxy_set_header X-Real-IP $remote_addr;
+     proxy_set_header X-Forwarded-For
+$proxy_add_x_forwarded_for;
+}
+# 后端服务器配置：
+log_format main  '$remote_addr - $remote_user
+[$time_local] "$request" '
+           '$status $body_bytes_sent
+"$http_referer" '
+           '"$http_user_agent"
+"$http_x_real_ip" "$http_x_forwarded_for"';
+access_log logs/access.log main;
+# 代理服务器配置：
+proxy_cache_path /data/nginx/cache  max_size=10g
+ levels=1:2 keys_zone=nginx_cache:10m inactive=10m
+use_temp_path=off;
+server {
+3. 负载均衡目的：
+将前端超高并发访问转发至后端多台服务器进行处理，解决单个节点压力
+过大，造成Web服务响应过慢，严重的情况下导致服务瘫痪，无法正常提
+供服务的问题。
+4. 工作原理：
+ listen    80;
+ server_name localhost;
+location / {
+ root  html;
+ index index.html index.htm;
+ proxy_pass http://192.168.0.114;
+ proxy_set_header Host $host;
+ proxy_set_header X-Real-IP $remote_addr;
+ proxy_cache nginx_cache;
+ proxy_cache_key $host$uri$is_args$args;
+ proxy_cache_valid 200 304 302 1d;
+ }
+}
+# /data/nginx/cache #缓存资源存放路径
+# levels       #设置缓存资源的递归级别，默认为
+levels=1:2，表示Nginx为将要缓存的资源生成的key从后依次设置两级保
+存。
+key_zone     #在共享内存中设置一块存储区域来存放缓存的key和
+metadata，这样nginx可以快速判断一个request是否命中或者未命中缓存，
+1m可以存储8000个key，10m可以存储80000个key
+max_size     #最大cache空间，如果不指定，会使用掉所有disk
+space，当达到配额后，会删除不活跃的cache文件
+inactive     #未被访问文件在缓存中保留时间，本配置中如果60分钟
+未被访问则不论状态是否为expired，缓存控制程序会删掉文件。inactive默
+认是10分钟。需要注意的是，inactive和expired配置项的含义是不同的，
+expired只是缓存过期，但不会被删除，inactive是删除指定时间内未被访问
+的缓存文件
+use_temp_path  #如果为off，则nginx会将缓存文件直接写入指定的
+cache文件中，而不是使用temp_path存储，official建议为off，避免文件
+在不同文件系统中不必要的拷贝
+proxy_cache   #启用proxy cache，并指定key_zone。如果
+proxy_cache off表示关闭掉缓存。
+负载均衡分为四层负载均衡和七层负载均衡。
+四层负载均衡是工作在七层协议的第四层-传输层，主要工作是转发。
+它在接收到客户端的流量以后通过修改数据包的地址信息（目标地址和端
+口和源地址）将流量转发到应用服务器。
+七层负载均衡是工作在七层协议的第七层-应用层，主要工作是代理。
+它首先会与客户端建立一条完整的连接并将应用层的请求流量解析出来，
+再按照调度算法选择一个应用服务器，并与应用服务器建立另外一条连接
+将请求发送过去。
+5. 配置七层均衡：
+前端服务器主要配置upstream和proxy_pass：
+upstream 主要是配置均衡池和调度方法。
+前端服务器：192.168.1.6
+后端服务器1：192.168.1.5
+后端服务器2：192.168.1.7
+这里后端服务器也可以通过配置虚拟主机实现。
+proxy_pass 主要是配置代理服务器ip或服务器组的名字。
+proxy_set_header 主要是配置转发给后端服务器的Host和前端客户端真
+实ip。
+5.1 配置前端nginx：
+5.2 配置后端nginx：
+5.3 均衡方式：
+5.3.1 轮询:
+# 在http指令块下配置upstream指令块
+ upstream web {
+   server 192.168.1.5;
+   server 192.168.1.7;
+ }
+# 在location指令块配置proxy_pass
+ server {
+   listen    80;
+   server_name localhost;
+   location / {
+     proxy_pass http://web;  
+     proxy_set_header Host $host;
+     proxy_set_header X-Real-IP $remote_addr;
+   }
+ }
+# proxy_set_header Host $host;
+通过这个指令，把客户端请求的host，转发给后端。
+# proxy_set_header X-Real-IP $remote_addr
+通过这个指令，把客户端的IP转发给后端服务器，在后端服务器的日志格式中，
+添加$http_x_real_ip即可获取原始客户端的IP了。
+yum install nginx -y
+echo "this is 1.5 page" > /usr/share/nginx/html/index.html
+echo "this is 1.7 page" > /usr/share/nginx/html/index.html
+访问前端IP：
+5.3.2 轮询加权重:
+访问前端IP：
+5.3.3 最大错误连接次数:
+upstream web {
+ server 192.168.1.5;
+ server 192.168.1.7;
+ }
+[root@192 ~]# while true;do curl 192.168.1.6;sleep 2;done
+this is 1.5 page
+           this is 1.7 page
+this is 1.5 page
+           this is 1.7 page
+          
+#可以看到后端服务器，非常平均的处理请求。
+upstream web {
+   server 192.168.1.5 weight=3;
+   server 192.168.1.7 weight=1;
+   }
+[root@192 ~]# while true;do curl 192.168.1.6;sleep 1;done
+this is 1.5 page
+this is 1.5 page
+this is 1.5 page
+           this is 1.7 page
+this is 1.5 page
+this is 1.5 page
+this is 1.5 page
+           this is 1.7 page
+#后端服务，根据权重比例处理请求，适用于服务器性能不均的环境。
+错误的连接由proxy_next_upstream， fastcgi_next_upstream等指令决
+定，且默认情况下，后端某台服务器出现故障了，nginx会自动将请求再次
+转发给其他正常的服务器（因为默认 proxy_next_upstream error
+timeout）。
+所以即使我们没有配这个参数，nginx也可以帮我们处理error和timeout的
+相应，但是没法处理404等报错。
+为了看清楚本质，可以先将proxy_next_upstream设置为off，也就是不
+将失败的请求转发给其他正常服务器，这样我们可以看到请求失败的结
+果。
+访问前端IP：
+upstream web {
+   server 192.168.1.5 weight=1 max_fails=3
+fail_timeout=9s;
+   #先将1.5这台nginx关了。
+   server 192.168.1.7 weight=1;
+   }
+  
+server {
+   listen    80;
+   server_name localhost;
+   location / {
+     proxy_pass http://web;
+     #proxy_next_upstream error http_404 http_502;
+     proxy_next_upstream off;
+     proxy_set_header Host $host;
+     proxy_set_header X-Real-IP $remote_addr;
+   }
+}
+# proxy_next_upstream error http_404 http_502;
+通过这个指令，可以处理当后端服务返回404等报错时，
+直接将请求转发给其他服务器，而不是把报错信息返回客户端。
+# 在这里，我们将超时时间设置为9s，最多尝试3次，
+这里要注意，尝试3次，依然遵循轮询的规则，并不是一个请求，连接3次，
+而是轮询三次，有3次处理请求的机会。
+把proxy_next_upstream开启，再来访问看结果：
+访问前端IP：
+[root@192 ~]# while true;do curl -sI 192.168.1.6 |grep
+HTTP/1.1 ;sleep 3;done
+HTTP/1.1 502 Bad Gateway
+HTTP/1.1 200 OK
+HTTP/1.1 502 Bad Gateway
+HTTP/1.1 200 OK
+HTTP/1.1 502 Bad Gateway
+HTTP/1.1 200 OK
+HTTP/1.1 200 OK
+HTTP/1.1 200 OK
+HTTP/1.1 200 OK
+HTTP/1.1 502 Bad Gateway
+# 设置的超时时间为9s，是每3s请求一次。
+可以看到后端一台服务器挂了后，请求没有直接转发给正常的服务器，
+而是直接返回了502。尝试三次后，等待9s，才开始再次尝试（最后一个
+502）。
+upstream web {
+   server 192.168.1.5 weight=1 max_fails=3
+fail_timeout=9s;
+   #先将1.5这台nginx关了。
+   server 192.168.1.7 weight=1;
+   }
+   
+server {
+   listen    80;
+   server_name localhost;
+   location / {
+     proxy_pass http://web;
+     proxy_next_upstream error http_404 http_502;
+     #proxy_next_upstream off;
+     proxy_set_header Host $host;
+     proxy_set_header X-Real-IP $remote_addr;
+   }
+}
+5.3.4 ip_hash：
+通过客户端ip进行hash，再通过hash值选择后端server 。
+访问前端IP：
+[root@192 ~]# while true;do curl -sI 192.168.1.6 |grep
+HTTP/1.1 ;sleep 3;done
+HTTP/1.1 200 OK
+HTTP/1.1 200 OK
+HTTP/1.1 200 OK
+HTTP/1.1 200 OK
+HTTP/1.1 200 OK
+HTTP/1.1 200 OK
+#可以看到现在没有502报错，请求都处理了。因为错误的响应码被
+proxy_next_upstream 获取，这次请求被转发给下一个正常的服务器了。
+upstream web {
+   ip_hash;
+   server 192.168.1.5 weight=1 max_fails=3
+fail_timeout=9s;
+   server 192.168.1.7 weight=1;
+   }
+   
+server {
+   listen    80;
+   server_name localhost;
+   location / {
+     proxy_pass http://web;
+     proxy_next_upstream error http_404 http_502;
+     #proxy_next_upstream off;
+     proxy_set_header Host $host;
+     proxy_set_header X-Real-IP $remote_addr;
+   }
+}
+在使用负载均衡的时候会遇到会话保持的问题,常用的方法有:
+a、ip hash，根据客户端的IP，将请求分配到不同的服务器上;
+b、cookie，服务器给客户端下发一个cookie，具有特定cookie的请求会分
+配给它的发布者。
+5.3.5 url_hash:
+通过请求url进行hash，再通过hash值选择后端server
+5.3.5 根据响应时间均衡；
+fair算法会根据后端节点服务器的响应时间来分配请求，时间短的优先分
+配
+[root@192 ~]# while true;do curl 192.168.1.6;sleep 2;done
+this is 1.5 page
+this is 1.5 page
+this is 1.5 page
+^C
+[root@192 ~]# curl 192.168.1.7
+           this is 1.7 page
+          
+#可以看到1.7的服务是正常的，但是却不转发给1.7了，请求固定在了1.5的服
+务器上。       
+upstream nginx_web {
+       hash $request_uri consistent;
+       server 192.168.75.128;
+       server 192.168.75.135;
+   }
+# 下载模块：
+wget https://github.com/gnosek/nginx-upstream-
+fair/archive/master.zip
+# 解压：
+unzip master.zip
+# 修改源码bug：
+sed -i 's/default_port/no_port/g'
+ngx_http_upstream_fair_module.c
+# 预编译：
+5.3.6 备用服务器：
+6. 配置四层均衡：
+前端服务器主要配置stream和upstream，注意该模块需要在预编译时指
+定，没有被默认编译进nginx。
+6.1 配置前端服务器：
+./configure --prefix=/usr/local/nginx --add-
+module=../echo-nginx-module --with-http_stub_status_module
+--add-module=../nginx-upstream-fair-master
+# 编译/安装：
+make && make install
+# 配置：
+upstream web {
+fair;
+   server 192.168.1.5 weight=1  max_fails=3
+fail_timeout=9s;
+   server 192.168.1.7 weight=1;
+   }
+upstream web {
+   server 192.168.1.5 weight=1  max_fails=3
+fail_timeout=9s;
+   server 192.168.1.7 weight=1 backup;
+   }
+# 1.7的服务器做备用服务器，只有在1.5得服务器不能提供服务时，才会自动
+顶上,否则，默认是不提供服务的。
+前端服务器：192.168.75.130
+后端服务器1：192.168.75.128
+后端服务器2：192.168.75.135
+# 预编译：
+./configure --prefix=/usr/local/nginx --add-
+module=../echo-nginx-module --with-http_stub_status_module
+ --with-stream
+6.2 配置后端测试页面：
+6.3 访问前端服务器：
+# 编译/安装：
+make && make install
+# 在main全局配置stream：
+events {
+ worker_connections  1024;
+}
+stream {
+   upstream web {
+   # 必须要指定ip加port
+       server 192.168.75.128:80;
+       server 192.168.75.135:80;
+   }
+   server {
+       listen 80;
+        # 连接上游服务器超时间，超过则选择另外一个服务器
+       proxy_connect_timeout 3s;
+        # tcp连接闲置时间，超过则关闭
+       proxy_timeout 10s;
+       proxy_pass web;
+   }
+   log_format proxy '$remote_addr $remote_port
+$protocol $status [$time_iso8601] '
+             '"$upstream_addr"
+"$upstream_bytes_sent" "$upstream_connect_time"' ;
+   access_log /usr/local/nginx/logs/proxy.log proxy;
+}
+echo "this is 128 page" > /usr/local/nginx/html/index.html
+echo "this is 135 page" > /usr/local/nginx/html/index.html
+6.4 端口转发：
+# 在后端135上访问130：
+[root@node5 ~]# curl 192.168.75.130/index.html
+this is 128 page
+# 查看后端128日志：
+[root@node2 ~]# tailf /usr/local/nginx/logs/access.log
+192.168.75.130 - - [17/Dec/2019:11:07:56 +0800] "GET
+/index.html HTTP/1.1" 200 17 "-" "curl/7.29.0" "-"
+# 查看前端130代理日志：
+[root@node3 nginx-1.16.0]# tailf
+/usr/local/nginx/logs/proxy.log
+192.168.75.135 57704 TCP 200 [2019-12-17T11:07:56+08:00]
+"192.168.75.128:80" "88" "0.001"
+# 前端130上配置如下：
+stream {
+   upstream web {
+       server 192.168.75.128:22;
+   }
+   server {
+       listen 2222;
+       proxy_connect_timeout 3s;
+       proxy_timeout 10s;
+       proxy_pass web;
+        #proxy_set_header X-Real-IP $remote_addr;
+   }
+   log_format proxy '$remote_addr $remote_port
+$protocol $status [$time_iso8601] '
+             '"$upstream_addr"
+"$upstream_bytes_sent" "$upstream_connect_time"' ;
+   access_log /usr/local/nginx/logs/proxy.log proxy;
+}
+# 在另外一台服务器ssh连接：
+[root@node5 ~]# ssh 192.168.75.130 -p 2222
+root@192.168.75.130's password:
+Last login: Wed Dec 18 15:50:37 2019 from 192.168.75.130
+[root@node2 ~]#
+[root@node2 ~]#
+# 可以看到，已经登录到了128服务器上。
+7. 后端服务器数据同步：
+7.1 部署rsync:
+[root@node2 ~]# ip a
+1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue
+state UNKNOWN qlen 1
+ link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00
+ inet 127.0.0.1/8 scope host lo
+   valid_lft forever preferred_lft forever
+ inet6 ::1/128 scope host
+   valid_lft forever preferred_lft forever
+2: ens32: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc
+pfifo_fast state UP qlen 1000
+ link/ether 00:50:56:2a:4e:7f brd ff:ff:ff:ff:ff:ff
+ inet 192.168.75.128/24 brd 192.168.75.255 scope global
+ens32
+   valid_lft forever preferred_lft forever
+ inet6 fe80::52eb:5720:d625:841/64 scope link
+   valid_lft forever preferred_lft forever
+yum install rsync -y
+# 修改配置文件：
+vim /etc/rsyncd.conf
+# /etc/rsyncd: configuration file for rsync daemon mode
+# See rsyncd.conf man page for more options.
+# rsync进程管理用户：
+uid = root
+gid = root
+# rsync服务端口，默认是873，可以省略不写
+port = 873
+# 安全设置，限制软连接，如果设置为no，则文件同步到远程服务器后，会在
+链接文件前面增加一个目录，使链接文件失效，设置为yes则表示不加目录。
+use chroot = yes
+# 最大链接数
+max connections = 100
+# 进程pid文件
+pid file = /var/run/rsyncd.pid
+# 排除指定目录
+exclude = lost+found/
+7.2 部署sersync：
+# 开启日志，默认在系统日志中记录
+transfer logging = yes
+# 超时时间
+timeout = 900
+# 忽略不可读的错误
+ignore nonreadable = yes
+# 不压缩指定文件
+dont compress  = *.gz *.tgz *.zip *.z *.Z *.rpm *.deb
+*.bz2
+# 允许同步的服务器
+hosts allow = 192.168.75.124
+# 不允许同步的服务器
+hosts deny = *
+# 关闭只读权限（默认只能将本机文件同步至远程服务器，关闭后可以拉取远程
+服务器内容到本机）
+read only = false
+# 模块
+[web]
+ # 本机存放同步文件目录
+   path = /data/web
+   # 注释目录作用
+   comment = nginx web data
+   # 用于同步的用户（虚拟用户）
+   auth users = rsync
+   # 用户认证文件
+   secrets file = /etc/rsync.passwd
+  
+# 创建目录：
+mkdir -p /data/web
+# 创建认证文件：
+echo "rsync:123456" > /etc/rsync.passwd
+# 设置文件权限：
+chmod 600 /etc/rsync.passwd
+# 启动服务：
+systemctl start rsyncd
+# 解压包：
+tar xf sersync2.5.4_64bit_binary_stable_final.tar.gz
+# 移到/usr/local/目录下：
+mv GNU-Linux-x86/ /usr/local/sersync
+# 备份配置文件：
+[root@node6 src]# cd /usr/local/sersync/
+[root@node6 sersync]# cp confxml.xml confxml.xml.bak
+# 修改配置文件：
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<head version="2.5">
+<!--为插件设置的IP:PORT，与同步没有太大关系-->
+ <host hostip="localhost" port="8008"></host>
+ <!--是否开启调式模式，默认关闭，如果开启，则进行文件同步时，终端
+会输出同步的命令-->
+ <debug start="false"/>
+ <!--如果文件系统是xfs,则需要开启，否则会出问题，比如卡机等状况-
+->
+ <fileSystem xfs="true"/>
+ <!--设置过滤规则，默认是关闭，关闭表示所有文件都同步，如果设置为
+true，则可以根据设置的正则表达式过滤不需要同步的文件-->
+ <filter start="false">
+   <exclude expression="(.*)\.svn"></exclude>
+   <exclude expression="(.*)\.gz"></exclude>
+   <exclude expression="^info/*"></exclude>
+   <exclude expression="^static/*"></exclude>
+ </filter>
+ <inotify>
+   <delete start="true"/>
+   <createFolder start="true"/>
+   <createFile start="false"/>
+   <closeWrite start="true"/>
+<moveFrom start="true"/>
+   <moveTo start="true"/>
+   <attrib start="false"/>
+   <modify start="false"/>
+ </inotify>
+<!--sersync命令的配置信息-->
+ <sersync>
+ <!--设置监控的目录，该目录是本地要进行同步的目录-->
+   <localpath watch="/tmp">
+    <!--设置远程服务器的IP与rsync配置文件中同步的模块，web即为
+模块名-->
+     <remote ip="192.168.75.125" name="web"/>
+     <!--<remote ip="192.168.8.39" name="tongbu"/>-
+->
+     <!--<remote ip="192.168.8.40" name="tongbu"/>-
+->
+   </localpath>
+   <!--rsync命令的配置信息-->
+   <rsync>
+   <!--默认参数，t保留文件时间属性，u源文件比备份文件新则
+执行，z传输压缩-->
+     <commonParams params="-artuz"/>
+     <!--开启认证，默认没有开启（将false改为true），然后指
+定认证的文件-->
+<auth start="true" users="rsync"
+passwordfile="/etc/rsync.passwd"/>
+<!--设置自定义端口，默认关闭-->
+     <userDefinedPort start="false" port="874"/><!-
+- port=874 -->
+     <!--设置超时时间，默认为100s-->
+     <timeout start="true" time="100"/><!--
+timeout=100 -->
+     <ssh start="false"/>
+   </rsync>
+   
+   <failLog path="/tmp/rsync_fail_log.sh"
+timeToExecute="60"/><!--default every 60mins execute once-
+->
+   <!--是否开启计划任务，默认关闭（false）,开启则表示每过600分
+钟，进行一次全同步-->
+   <crontab start="true" schedule="600"><!--600mins--
+>
+   <!--因为是全同步，所以如果前面有开启过滤文件功能，这里也应该
+开启，否则会将不应该同步的文件也进行同步，默认为不开启（false），如果
+开启了，下面设置的过滤规则尽量与上面的过滤规则保持一致。-->
+     <crontabfilter start="false">
+       <exclude expression="*.php"></exclude>
+       <exclude expression="info/*"></exclude>
+     </crontabfilter>
+   </crontab>
+    <!--这个插件开关不能删除，否则可能会导致服务进程起不来-->
+   <plugin start="false" name="command"/>
+ </sersync>
+  <!--其他插件可以根据情况保留或者使用-->
+</head>
+# 启动：
+/usr/local/sersync/sersync2 -d -r -o
+/usr/local/sersync/confxml.xml
+-d: daemon模式，后台运行
+-r: 全同步
+-o： 指定启动的配置文件
+# 查看进程：
+ps -ef |grep sersync
+root    75488    1  0 01:04 ?     00:00:00
+/usr/local/sersync/sersync2 -d -r -o
+/usr/local/sersync/confxml.xml
+root    75503  74825  0 01:05 pts/5   00:00:00 grep --
+color=auto sersync
