@@ -1,0 +1,177 @@
+7. 后端服务器数据同步：
+7.1 部署rsync:
+[root@node2 ~]# ip a
+1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue
+state UNKNOWN qlen 1
+ link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00
+ inet 127.0.0.1/8 scope host lo
+   valid_lft forever preferred_lft forever
+ inet6 ::1/128 scope host
+   valid_lft forever preferred_lft forever
+2: ens32: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc
+pfifo_fast state UP qlen 1000
+ link/ether 00:50:56:2a:4e:7f brd ff:ff:ff:ff:ff:ff
+ inet 192.168.75.128/24 brd 192.168.75.255 scope global
+ens32
+   valid_lft forever preferred_lft forever
+ inet6 fe80::52eb:5720:d625:841/64 scope link
+   valid_lft forever preferred_lft forever
+yum install rsync -y
+# 修改配置文件：
+vim /etc/rsyncd.conf
+# /etc/rsyncd: configuration file for rsync daemon mode
+# See rsyncd.conf man page for more options.
+# rsync进程管理用户：
+uid = root
+gid = root
+# rsync服务端口，默认是873，可以省略不写
+port = 873
+# 安全设置，限制软连接，如果设置为no，则文件同步到远程服务器后，会在
+链接文件前面增加一个目录，使链接文件失效，设置为yes则表示不加目录。
+use chroot = yes
+# 最大链接数
+max connections = 100
+# 进程pid文件
+pid file = /var/run/rsyncd.pid
+# 排除指定目录
+exclude = lost+found/
+7.2 部署sersync：
+工作原理：
+# 开启日志，默认在系统日志中记录
+transfer logging = yes
+# 超时时间
+timeout = 900
+# 忽略不可读的错误
+ignore nonreadable = yes
+# 不压缩指定文件
+dont compress  = *.gz *.tgz *.zip *.z *.Z *.rpm *.deb
+*.bz2
+# 允许同步的服务器
+hosts allow = 192.168.75.124
+# 不允许同步的服务器
+hosts deny = *
+# 关闭只读权限（默认只能将本机文件同步至远程服务器，关闭后可以拉取远程
+服务器内容到本机）
+read only = false
+# 模块
+[web]
+ # 本机存放同步文件目录
+   path = /data/web
+   # 注释目录作用
+   comment = nginx web data
+   # 用于同步的用户（虚拟用户）
+   auth users = rsync
+   # 用户认证文件
+   secrets file = /etc/rsync.passwd
+  
+# 创建目录：
+mkdir -p /data/web
+# 创建认证文件：
+echo "rsync:123456" > /etc/rsync.passwd
+# 设置文件权限：
+chmod 600 /etc/rsync.passwd
+# 启动服务：
+systemctl start rsyncd
+在同步服务器上开启sersync服务，sersync负责监控配置路径中的文
+件系统事件变化；
+调用rsync命令把更新的文件同步到目标服务器；
+在同步目标服务器配置rsync 服务。
+# 解压包：
+tar xf sersync2.5.4_64bit_binary_stable_final.tar.gz
+# 移到/usr/local/目录下：
+mv GNU-Linux-x86/ /usr/local/sersync
+# 备份配置文件：
+[root@node6 src]# cd /usr/local/sersync/
+[root@node6 sersync]# cp confxml.xml confxml.xml.bak
+# 修改配置文件：
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<head version="2.5">
+<!--为插件设置的IP:PORT，与同步没有太大关系-->
+ <host hostip="localhost" port="8008"></host>
+ <!--是否开启调式模式，默认关闭，如果开启，则进行文件同步时，终端
+会输出同步的命令-->
+ <debug start="false"/>
+ <!--如果文件系统是xfs,则需要开启，否则会出问题，比如卡机等状况-
+->
+ <fileSystem xfs="true"/>
+ <!--设置过滤规则，默认是关闭，关闭表示所有文件都同步，如果设置为
+true，则可以根据设置的正则表达式过滤不需要同步的文件-->
+ <filter start="false">
+   <exclude expression="(.*)\.svn"></exclude>
+   <exclude expression="(.*)\.gz"></exclude>
+   <exclude expression="^info/*"></exclude>
+   <exclude expression="^static/*"></exclude>
+ </filter>
+ <inotify>
+   <delete start="true"/>
+   <createFolder start="true"/>
+   <createFile start="false"/>
+   <closeWrite start="true"/>
+<moveFrom start="true"/>
+   <moveTo start="true"/>
+   <attrib start="false"/>
+   <modify start="false"/>
+  </inotify>
+<!--sersync命令的配置信息-->
+ <sersync>
+ <!--设置监控的目录，该目录是本地要进行同步的目录-->
+   <localpath watch="/tmp">
+   <!--设置远程服务器的IP与rsync配置文件中同步的模块，web即为
+模块名-->
+     <remote ip="192.168.75.125" name="web"/>
+     <!--<remote ip="192.168.8.39" name="tongbu"/>-
+->
+     <!--<remote ip="192.168.8.40" name="tongbu"/>-
+->
+   </localpath>
+   <!--rsync命令的配置信息-->
+   <rsync>
+   <!--默认参数，t保留文件时间属性，u源文件比备份文件新则
+执行，z传输压缩-->
+     <commonParams params="-artuz"/>
+     <!--开启认证，默认没有开启（将false改为true），然后指
+定认证的文件-->
+<auth start="true" users="rsync"
+passwordfile="/etc/rsync.passwd"/>
+<!--设置自定义端口，默认关闭-->
+     <userDefinedPort start="false" port="874"/><!-
+- port=874 -->
+     <!--设置超时时间，默认为100s-->
+     <timeout start="true" time="100"/><!--
+timeout=100 -->
+     <ssh start="false"/>
+   </rsync>
+   
+   <failLog path="/tmp/rsync_fail_log.sh"
+timeToExecute="60"/><!--default every 60mins execute once-
+->
+   <!--是否开启计划任务，默认关闭（false）,开启则表示每过600分
+钟，进行一次全同步-->
+   <crontab start="true" schedule="600"><!--600mins--
+>
+   <!--因为是全同步，所以如果前面有开启过滤文件功能，这里也应该
+开启，否则会将不应该同步的文件也进行同步，默认为不开启（false），如果
+开启了，下面设置的过滤规则尽量与上面的过滤规则保持一致。-->
+     <crontabfilter start="false">
+       <exclude expression="*.php"></exclude>
+       <exclude expression="info/*"></exclude>
+     </crontabfilter>
+   </crontab>
+    <!--这个插件开关不能删除，否则可能会导致服务进程起不来-->
+   <plugin start="false" name="command"/>
+ </sersync>
+  <!--其他插件可以根据情况保留或者使用-->
+</head>
+# 启动：
+/usr/local/sersync/sersync2 -d -r -o
+/usr/local/sersync/confxml.xml
+-d: daemon模式，后台运行
+-r: 全同步
+-o： 指定启动的配置文件
+# 查看进程：
+ps -ef |grep sersync
+root    75488    1  0 01:04 ?     00:00:00
+/usr/local/sersync/sersync2 -d -r -o
+/usr/local/sersync/confxml.xml
+root    75503  74825  0 01:05 pts/5   00:00:00 grep --
+color=auto sersync
