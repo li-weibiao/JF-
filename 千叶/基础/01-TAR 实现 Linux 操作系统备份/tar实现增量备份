@@ -1,0 +1,33 @@
+TAR 实现 Linux 操作系统备份：
+Tar 命令工具除了用于日常打包、解压源码包或者压缩包之外，最大的亮点是还可以
+用于 Linux 操作系统文件及目录的备份，使用 tar –g 可以基于 GNU 格式的增量备份，
+备份原理是基于检查目录或者文件的 atime、mtime、ctime 属性是否被修改。文件及
+目录时间属性详解如下：
+ 文件被访问的时间(Access time,atime)；
+ 文件内容被改变的时间（Modified time，mtime)；
+ 文件写入、权限更改的时间（Change time，ctime)。
+总结，更改文件内容 mtime 和 ctime 都会改变，但 ctime 可以在 mtime 未发生变
+化时被更改，例如修改文件权限，文件 mtime 时间不变，而 ctime 时间改变。TAR 增量
+备份案例演示步骤如下：
+（1） /root 目录创建 jingfeng 文件夹，同时在 jingfeng 文件夹中，新建 jf1.txt，jf2.txt
+文件，如图 6-1 所示：
+（2） 使用 tar 命令第一次完整备份 jingfeng 文件夹中的内容，-g 指定快照 snapshot
+文件，第一次没有该文件则会自动创建，如图 6-2 所示：
+cd /root/jingfeng/
+
+tar -g /data/backup/snapshot -czvf /data/backup/2017jingfeng.tar.gz *
+
+（3） 使用 tar 命令第一次完整备份 jingfeng 文件夹中之后，会生成快照文件：
+/data/backup/snapshot，后期增量备份会以 snapshot 文件为参考，在 jingfeng
+文件夹中再创建 jf3.txt jf4.txt 文件，然后通过 tar 命令增量备份 jingfeng 目录所有
+内容，如图 6-3 所示：
+cd /root/jingfeng/
+
+touch jf3.txt jf4.txt
+
+tar -g /data/backup/snapshot -czvf /data/backup/2017jingfeng_add1.tar.gz *
+
+如上图 6-3 所示，增量备份时，需-g 指定第一次完整备份的快照 snapshot 文件，
+同时增量打包的文件名不能跟第一次备份后的文件名重复，通过 tar –tf 可以查看打包后
+的文件内容。
+
