@@ -1,0 +1,26 @@
+MBR分区标准决定了MBR只支持在2TB以下的硬盘，为了支持能使用大于2T硬盘空间，需使用GPT格式进行分区。创建大于2TB的分区，需使用parted工具。在企业真实环境中，通常一台服务器有多块硬盘，整个硬盘容量为10T，需要基于GTP格式对10T硬盘进行分区，操作步骤如下：
+parted -s /dev/sdb mklabel gpt   #设置分区类型为gpt格式
+
+mkfs.ext3 /dev/sdb  #基于Ext3文件系统类型格式化
+
+mount /dev/sdb /data/    #挂载/dev/sdb设备至/data/目录
+
+以下是详细步骤：
+
+（1）如图7-12所示，假设/dev/sdb为10T硬盘，使用GPT格式来格式化磁盘：
+  
+（2）执行命令：parted -s /dev/sdb mklabel gpt，如图7-13所示
+
+还是用的是fdisk -l | tail 来查看的磁盘大小
+
+（3）基于 mkfs.ext3 /dev/sdb  格式化磁盘，如图7-14所示：
+
+parted命令行也可以进行分区，如图7-15（a）、7-15（b）、7-15（c）所示：
+parted -> select /dev/sdb -> mklabel gpt -> mkpart primary 0 -1 （将整块硬盘分为一个分区）-> print
+
+mkfs.ext3 /dev/sdb1
+
+mount /dev/sdb1 /data/
+
+df -h 
+
