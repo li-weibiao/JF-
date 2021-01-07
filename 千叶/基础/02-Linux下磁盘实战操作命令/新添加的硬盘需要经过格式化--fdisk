@@ -1,0 +1,34 @@
+企业真实场景由于硬盘常年大量读写，经常会出现坏盘，需要更换硬盘。或者由于磁盘空间不足，需添加新硬盘，新添加的硬盘需要经过格式化、分区才能被Linux系统所使用，
+虚拟机CentOS7Linux模拟DELLR730真实服务器添加一块新硬盘，不需要关机，直接插入用硬盘即可，一般硬盘均支持热插拔功能。企业中添加新硬盘的操作流程如下：
+（1）检测Linux系统识别的硬盘设备，新添加硬盘被识别为/dev/sdb，如果有多块硬盘，会依次识别成/dev/sdc、/dev/sdd等设备名称，如图7-6所示：
+fdisk-l
+
+（2）基于新硬盘/dev/sdb设备，创建磁盘分区/dev/sdb1，如图7-7所示：
+fdisk/dev/sdb
+
+（3）fdisk分区命令参数如下，常用参数包括m、n、p、e、d、w。（常用命令参数请百度）
+
+（4）创建/dev/sdb1分区方法，fdisk/dev/sdb，然后按n-p-1-Enter键-+20G-Enter键-w，最后执行fdisk–l|tail-10，如图7-8（a）、图7-8（b）所示：
+
+（5）mkfs.ext4  /dev/sdb1        #格式化磁盘分区，如图7-9所示：
+
+（6）/dev/sdb1分区格式化，使用mount命令挂载到/data/目录，如图7-10所示：
+
+  mkdir -p /data/        # 创建/data/数据目录
+  
+  mount /dev/sdb1 /data           #挂载/dev/sdb1分区至/data/目录
+  
+  df -h                    #查看磁盘分区详情
+
+  echo "mount /dev/sdb1 /data" >> /etc/rc.local        #将挂载分区命令加入/etc/rc.local开机启动
+  
+（7）自动挂载分区除了可以加入到/etc/rc.local开机启动之外，还可以加入到/etc/fstab文件中，如图7-11所示：
+  /dev/sdb1  /data/   ext4  defaults 0 0   # 讲这个写入/etc/fstab文件中
+  
+  mount -o  rw,remount /    # 在shell命令行中敲，重新挂载/系统，检测/etc/fstab是否有误。
+  
+  
+  
+  
+  
+
