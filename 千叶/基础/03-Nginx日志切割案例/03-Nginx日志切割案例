@@ -1,0 +1,20 @@
+NginxWEB服务器每天会产生大量的访问日志，而且不会自动地进行切割，如果持续天数访问，将会导致该access.log日志文件容量非常大，不便于SA查看相关的网站异常日志。
+可以基于Shell脚本结合Crontab计划任务对Nginx日志进行自动、快速的切割，其切割的方法使用mv命令即可.
+#!/bin/bash
+#auto mv nginx log shell
+#by author jfedu.net
+S_LOG=/usr/local/nginx/logs/access.log
+D_LOG=/data/backup/`date+%Y%m%d`
+echo -e "\033[32mPlease wait start cut shell scripts...\033[1m"
+sleep 2
+if [ ! -d $D_LOG ];then
+  mkdir -p $D_LOG
+fi
+mv $S_LOG $D_LOG
+kill -USR1 `cat/usr/local/nginx/logs/nginx.pid`
+echo "-------------------------------------------"
+echo "The Nginx log Cutting Successfully!"
+echo "You can access back up nginx log $D_LOG/access.log files."
+
+将如上脚本内容写入auto_nginx_log.sh文件，crontab/var/spool/cron/root文件中添加如下代码，每天凌晨自动切割日志：
+0 0 * * * /bin/sh /data/sh/auto_nginx_log.sh >> /tmp/nginx_cut.log 2>&1
