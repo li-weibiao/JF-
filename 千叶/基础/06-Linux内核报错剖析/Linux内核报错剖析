@@ -1,0 +1,82 @@
+企业生产环境Linux服务器正常运行，由于某种原因会导致内核报错或者抛出很多信息，根据系统SA可以快速定位Linux服务器故障，Linux内核日志一般存在messages日志中，可以通过命令tail -fn 100 /var/log/messages查看Linux内核日志，如下为Linux内核常见报错日志及生产环境解决报错的方案：
+
+（1）Linux内核抛出net.ipv4.tcp_max_tw_buckets错误：
+Sep 23 04:45:55 localhost kernel:TCP:time wait bucket table overflow
+Sep 23 04:45:55 localhost kernel:TCP:time wait bucket table overflow
+……
+
+原因：根据TCP协议定义的3次握手及四次断开连接规定，发起socket主动关闭的一方Socket将进入TIME_WAIT状态，TIME_WAIT状态将持续2个MSL(MaxSegmentLifetime)。
+如果该值设置过小导致，当系统Timewait数量超过默认设置的值，即会抛出如上的警告信息，需要增加net.ipv4.tcp_max_tw_buckets的值，警告信息消除。
+当然也不能设置过大，对于一个处理大量短连接的服务器，如果是由服务器主动关闭客户端的连接，将导致服务器端存在大量的处于TIME_WAIT状态的Socket，甚至比处于Established状态下的Socket多的多，严重影响服务器的处理能力，甚至耗尽可用的Socket而停止服务，TIME_WAIT是TCP协议用以保证被重新分配的Socket不会受到之前残留的延迟重发报文影响的机制，是TCP传输必要的逻辑保证。
+
+（2）Linux内核抛出Toomanyopenfiles错误：
+Benchmarking localhost(bepatient)
+socket:Toomanyopenfiles(24)
+socket:Toomanyopenfiles(24)
+……
+
+原因：每个文件描述符与一个打开文件相对应，不同的文件描述符可以指向同一个文件。相同的文件可以被不同的进程打开，也可以在同一个进程中被多次打开。Linux内核对应每个用户打开的文件最大数一般为1024，需要将该值调高满足大并发网站的访问。
+Linux每个用户打开文件最大数永久设置方法，将如下代码加入内核限制文件/etc/security/limits.conf的末尾，Exit退出终端，重新登录即生效：
+
+* soft noproc 65535
+* hard noproc 65535
+* soft nofile 65535
+* hard nofile 65535
+
+
+（3）Linux内核抛出possible SYN flooding on port80.Sending cookies错误：
+May3114:20:14 localhost kernel:possible SYN flooding on port80.Sending cookies.
+……
+
+原因：此问题是由于SYN队列已满，而触发SYNcookies，一般是由于大量的访问，或者恶意访问导致，也称之为SYNFlooding洪水攻击，与DDOS攻击类似。
+完整的TCP连接的三次握手，假设一个用户A向服务器发送了SYN报文后突然死机或掉线，那么服务器在发出SYN+ACK应答报文后是无法收到客户端的ACK报文的（第三次握手无法完成），这种情况下服务器端一般会重试（再次发送SYN+ACK给客户端）
+并等待一段时间后丢弃这个未完成的连接，这段时间的长度我们称为SYNTimeout，一般来说这个时间是分钟的数量级（大约为30秒-2分钟）。
+一个用户出现异常导致服务器的一个线程等待1分钟并不是什么很大的问题，但如果有一个恶意的攻击者大量模拟这种情况，服务器端将为了维护一个非常大的半连接列表而消耗非常多的资源，数以万计的半连接，即使是简单的保存并遍历也会消耗非常多的CPU时间和内存，何况还要不断对这个列表中的IP进行SYN+ACK的重试。
+实际上如果服务器的TCP/IP栈不够强大，最后的结果往往是堆栈溢出崩溃，即使服务器端的系统足够强大，服务器端也将忙于处理攻击者伪造的TCP连接请求而无暇理睬客户的正常请求（毕竟客户端的正常请求比率非常之小），此时从正常客户的角度看来，服务器失去响应，服务器拒绝提供服务，服务器受到了DDOS攻击，这里攻击的手段为DDOS中SYNFlood攻击（SYN洪水攻击）。
+防护DDOS攻击有两种手段，一是基于硬件专业防火墙、二是基于Linux内核简单防护，，如果攻击流量特别大，单纯配置内核参数是无法抵挡的，还得依靠专业级硬件防火墙，如下为Linux内核防护DDOS优化参数，加入如下代码即可：
+
+net.ipv4.tcp_fin_timeout=30
+net.ipv4.tcp_keepalive_time=1200
+net.ipv4.tcp_syncookies=1
+net.ipv4.tcp_tw_reuse=1
+net.ipv4.tcp_tw_recycle=1
+net.ipv4.ip_local_port_range=102465000
+net.ipv4.tcp_max_syn_backlog=8192
+net.ipv4.tcp_max_tw_buckets=8000
+net.ipv4.tcp_synack_retries=2
+net.ipv4.tcp_syn_retries=2
+
+
+（4）Linux内核抛出ip_conntrack:tablefull,droppingpacket.错误：
+May 6 11:15:07 localhost kernel:nf_conntrack:table full,dropping packet.
+……
+
+原因：由于该服务器开启了iptables防火墙，WEB服务器收到了大量的连接，iptables
+会把所有的连接都做链接跟踪处理，这样iptables就会有一个链接跟踪表，当这个表满的时候，就会出现上面的错误。ip_conntrack是linuxNAT的一个跟踪连接条目的模块，ip_conntrack模块会使用一个哈希表记录tcp通讯协议的establishedconnection记录。
+如果是CentOS6.x系统，需执行：modprobe nf_conntrack命令，然后在内核优化文件中加入如下代码，sysctl –p使其内核文件生效，即可解决该报错：
+
+net.nf_conntrack_max=655360
+net.netfilter.nf_conntrack_tcp_timeout_established=36000
+
+如果是CentOS5.x系统，需执行：modprobe ip_conntrack命令，然后在内核优化文件中加入如下代码，sysctl –p使其内核文件生效，即可解决该报错：
+net.ipv4.ip_conntrack_max=655350
+net.ipv4.netfilter.ip_conntrack_tcp_timeout_established=10800
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
