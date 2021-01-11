@@ -1,0 +1,78 @@
+Linux /proc/sys目录下存放着多数内核的参数，并且可以在系统运行时进行更改，一般重新启动机器就会失效。而/etc/sysctl.conf是一个允许改变正在运行中的Linux系统的接口，它包含一些TCP/IP堆栈和虚拟内存系统的高级选项，修改内核参数永久生效。
+
+/proc/sys下内核文件与配置文件sysctl.conf中变量存在着对应关系，即修改sysct.conf配置文件，其实是修改/proc/sys相关参数，所以对Linux内核优化只需修改/etc/sysctl.conf文件即可。如下为BAT企业生产环境/etc/sysct.conf内核完整参数：
+
+net.ipv4.ip_forward=0
+net.ipv4.conf.default.rp_filter=1
+net.ipv4.conf.default.accept_source_route=0
+kernel.sysrq=0
+kernel.core_uses_pid=1
+net.ipv4.tcp_syncookies=1
+kernel.msgmnb=65536
+kernel.msgmax=65536
+kernel.shmmax=68719476736
+kernel.shmall=4294967296
+net.ipv4.tcp_max_tw_buckets=10000
+net.ipv4.tcp_sack=1
+net.ipv4.tcp_window_scaling=1
+net.ipv4.tcp_rmem=4096873804194304
+net.ipv4.tcp_wmem=4096163844194304
+net.core.wmem_default=8388608
+net.core.rmem_default=8388608
+net.core.rmem_max=16777216
+net.core.wmem_max=16777216
+net.core.netdev_max_backlog=262144
+net.core.somaxconn=262144
+net.ipv4.tcp_max_orphans=3276800
+net.ipv4.tcp_max_syn_backlog=262144
+net.ipv4.tcp_timestamps=0
+net.ipv4.tcp_synack_retries=1
+net.ipv4.tcp_syn_retries=1
+net.ipv4.tcp_tw_recycle=1
+net.ipv4.tcp_tw_reuse=1
+net.ipv4.tcp_mem=94500000915000000927000000
+net.ipv4.tcp_fin_timeout=1
+net.ipv4.tcp_keepalive_time=30
+net.ipv4.ip_local_port_range=102465535
+
+
+Linux内核常见参数详解：
+net.ipv4.tcp_timestamps=1   该参数控制RFC1323时间戳与窗口缩放选项；
+net.ipv4.tcp_sack=1   选择性应答(SACK)是TCP的一项可选特性,可以提高某些网络中所有可用带宽的使用效率；
+net.ipv4.tcp_fack=1  打开FACK(ForwardACK)拥塞避免和快速重传功能；
+net.ipv4.tcp_retrans_collapse=1  打开重传重组包功能，为0的时候关闭重传重组包功能；
+net.ipv4.tcp_syn_retries=5  对于一个新建连接，内核要发送多少个SYN连接请求才决定放弃；
+net.ipv4.tcp_synack_retries=5tcp_synack_retries  显示或设定Linux在回应SYN要求时尝试多少次重新发送初始SYN,ACK封包后才决定放弃；
+net.ipv4.tcp_max_orphans=131072  系统所能处理不属于任何进程的TCPsockets最大数量；
+net.ipv4.tcp_max_tw_buckets=5000  系统同时保持TIME_WAIT套接字的最大数量，如果超过这个数字，TIME_WAIT套接字将立刻被清除并打印警告信息；默认为180000，设为较小数值此项参数可以控制TIME_WAIT套接字的最大数量，避免服务器被大量的TIME_WAIT套接字拖死；
+
+net.ipv4.tcp_keepalive_time=30
+net.ipv4.tcp_keepalive_probes=3
+net.ipv4.tcp_keepalive_intvl=3
+如果某个TCP连接在空闲30秒后,内核才发起probe(探查)；如果probe3次(每次3秒既tcp_keepalive_intvl值)不成功,内核才彻底放弃,认为该连接已失效；
+
+net.ipv4.tcp_retries1=3  放弃回应一个TCP连接请求前﹐需要进行多少次重试；
+net.ipv4.tcp_retries2=15  在丢弃激活(已建立通讯状况)的TCP连接之前﹐需要进行多少次重试；
+net.ipv4.tcp_fin_timeout=30  表示如果套接字由本端要求关闭，这个参数决定了它保持在FIN-WAIT-2状态的时间；
+net.ipv4.tcp_tw_recycle=1  表示开启TCP连接中TIME-WAITsockets的快速回收，默认为0，表示关闭；
+net.ipv4.tcp_max_syn_backlog=8192  表示SYN队列的长度，默认为1024，加大队列长度为8192，可以容纳更多等待连接的网络连接数；
+net.ipv4.tcp_syncookies=1  tcp建立连接的3路握手过程中，当服务端收到最初的SYN请求时，会检查应用程序的syn_backlog队列是否已满；启用syncookie，可以解决超高并发时的`can’tconnect`问题。但是会导致TIME_WAIT状态fallback为保持2MSL时间，高峰期时会导致客户端无可复用连接而无法连接服务器；
+
+net.ipv4.tcp_orphan_retries=0  关闭TCP连接之前重试多少次；
+
+net.ipv4.tcp_mem=178368237824356736  
+net.ipv4.tcp_mem[0]:低于此值,TCP没有内存压力；
+net.ipv4.tcp_mem[1]:在此值下,进入内存压力阶段；
+net.ipv4.tcp_mem[2]:高于此值,TCP拒绝分配socket；
+net.ipv4.tcp_tw_reuse=1  表示开启重用，允许将TIME-WAITsockets重新用于新的TCP连接；
+net.ipv4.ip_local_port_range=102465000  表示用于向外连接的端口范围；
+net.ipv4.ip_conntrack_max=655360  在内核内存中netfilter可以同时处理的“任务”（连接跟踪条目）；
+
+net.ipv4.icmp_ignore_bogus_error_responses=1  开启恶意icmp错误消息保护；
+net.ipv4.tcp_syncookies=1  开启SYN洪水攻击保护。
+
+
+
+
+
+
