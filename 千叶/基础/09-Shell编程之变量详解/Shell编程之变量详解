@@ -1,0 +1,87 @@
+Shell变量是非类型的解释型语言，不像C++、JAVA语言编程时需要事先声明变量，Shell给一个变量赋值，实际上就是定义了变量，在Linux支持的所有shell中，都可以用赋值符号(=)为变量赋值，Shell变量为弱类型，定义变量不需要声明类型，但在使用时需要明确变量的类型，可以使用Declare指定类型，Declare常见参数有：
+
++/-  "-"可用来指定变量的属性，"+"为取消变量所设的属性；
+-f  仅显示函数；
+r  将变量设置为只读；
+x  指定的变量会成为环境变量，可供shell以外的程序来使用；
+i  指定类型为数值，字符串或运算式。
+
+Shell编程中变量分为三种，分别是系统变量、环境变量和用户变量.
+其中系统变量在对参数判断和命令返回值判断时使用，
+而环境变量则主要是在程序运行时需要设置，
+用户变量又称为局部变量，多使用在Shell脚本内部或者临时局部使用。
+
+Shell变量名在定义时，首个字符必须为字母（a-z，A-Z），不能以数字开头，中间不能有空格，可以使用下划线（_），不能使用（-），也不能使用标点符号等。
+
+例如定义变量A=jfedu.net，定义这样一个变量，A为变量名，jfedu.net是变量的值，变量名有格式规范，变量的值可以随意指定。变量定义完成，如需要引用变量，可以使用$A。
+
+如下脚本var.sh脚本内容如下：
+#!/bin/bash
+#By author jfedu.net2017
+A=123
+echo “Printf variables is $A.”
+
+执行该Shell脚本，结果将会显示：Printf variables is jfedu.net。Shell常见的系统变量、环境变量、用户变量详解如下：
+（1）SHELL编程常见系统变量：
+$0  当前脚本的名称；
+$n  当前脚本的第n个参数,n=1,2,…9；
+$*  当前脚本的所有参数(不包括程序本身)；
+$#  当前脚本的参数个数(不包括程序本身)；
+$?  命令或程序执行完后的状态，返回0表示执行成功；
+$$  程序本身的PID号。
+
+
+（2）SHELL编程常见环境变量：
+PATH  命令所示路径，以冒号为分割；
+HOME  打印用户家目录；
+SHELL  显示当前Shell类型；
+USER  打印当前用户名；
+ID  打印当前用户id信息；
+PWD  显示当前所在路径；
+TERM  打印当前终端类型；
+HOSTNAME  显示当前主机名。
+
+（3）SHELL编程用户变量：
+A=jfedu.net  自定义变量A；
+N_SOFT=nginx-1.12.0.tar.gz  自定义变量N_SOFT；
+BACK_DIR=/data/backup/  自定义变量BACK_DIR；
+IP1=192.168.1.11  自定义变量IP1；
+IP2=192.168.1.12  自定义变量IP2。
+
+
+创建Echo打印菜单Shell脚本，脚本代码如下：
+#!/bin/bash
+#auto install httpd
+#By author jfedu.net2017
+echo -e '\033[32m-----------------------------\033[0m'
+FILE=httpd-2.2.31.tar.bz2
+URL=http://mirrors.cnnic.cn/apache/httpd/
+PREFIX=/usr/local/apache2/
+echo -e "\033[36mPleaseSelectInstallMenu:\033[0m"
+echo
+echo "1) 官方下载Httpd文件包."
+echo "2) 解压apache源码包."
+echo "3) 编译安装Httpd服务器."
+echo "4) 启动HTTPD服务器."
+echo -e '\033[32m-----------------------------\033[0m'
+sleep 20
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
