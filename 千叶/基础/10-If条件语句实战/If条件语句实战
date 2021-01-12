@@ -1,0 +1,77 @@
+LinuxShell编程中，if、for、while、case等条件流程控制语句用的非常多，熟练掌握以上流程控制语句及语法的实验，对编写Shel脚本有非常大的益处。
+
+If条件判断语句，通常以if开头，fi结尾。也可加入else或者elif进行多条件的判断，if表达式如下：
+
+if(表达式)
+  语句1
+else
+  语句2
+fi
+
+If语句Shell脚本编程案例如下：
+（1）比较两个整数大小。
+#!/bin/bash
+#By author jfedu.net2017
+NUM=100
+if (( $NUM > 4));then
+  echo “The Num $NUM more than 4.”
+else
+  echo “The Num $NUM less than 4.”
+fi
+
+（2）判断系统目录是否存在。
+#!/bin/bash
+#judge DIR or Files
+#By author jfedu.net2017
+if [ ! -d /data/20140515 -a ! -d /tmp/2017/ ];then     # 下面讲解-a的意思
+  mkdir -p /data/20140515
+fi
+
+If常见判断逻辑运算符详解：
+-f  判断文件是否存在eg:if [-f filename ]；
+-d  判断目录是否存在eg:if [ -d dir ]；
+-eq  等于，应用于整型比较equal；
+-ne  不等于，应用于整型比较notequal；
+-lt  小于，应用于整型比较letter；
+-gt  大于，应用于整型比较greater；
+-le  小于或等于，应用于整型比较；
+-ge  大于或等于，应用于整型比较；
+-a  双方都成立（and）逻辑表达式–a逻辑表达式；
+-o   单方成立（or）逻辑表达式–o逻辑表达式；
+-z  空字符串;
+||  单方成立;
+&&  双方都成立表达式。
+
+
+（3）if多个条件测试分数判断。
+#!/bin/bash
+#By author jfedu.net2017
+scores=$1
+if [[ $scores -eq 100 ]];then
+  echo "very good!";
+elif [[ $scores -gt 85 ]];then
+  echo "good!";
+elif [[ $scores -gt 60 ]];then
+  echo "pass!";
+elif [[ $scores -lt 60 ]];then
+  echo "no pass!"
+fi
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
