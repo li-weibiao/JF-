@@ -1,0 +1,23 @@
+Shell脚本编程需要如下几个事项：
+  Shell脚本命名一般为英文、大写、小写；
+  不能使用特殊符号、空格来命名；
+  Shell脚本后缀以.sh结尾；
+  不建议Shell命名为纯数字，一般以脚本功能命名。
+  Shell脚本内容首行需以#!/bin/bash开头；
+  Shell脚本中变量名称尽量使用大写字母，字母间不能使用“-”，可以使用“_”；
+  Shell脚本变量名称不能以数字、特殊符号开头。
+  
+如下为第一个Shell编程脚本，脚本名称为：first_shell.sh，代码内容如下：
+#!/bin/bash    固定格式，定义该脚本所使用的Shell类型；
+#This is my Firstshell   #号表示注释，没有任何的意义，SHELL不会解析它；
+#By author jfedu.net2017  表示脚本创建人，#号表示注解；
+echo “Hello World”   Shell脚本主命令，执行该脚本呈现的内容。
+
+Shell脚本编写完毕，如果运行该脚本，运行用户需要有执行权限，可以使用chmod o+x first_shell.sh赋予可执行权限。
+然后./first_shell.sh执行即可，还可以直接使用命令执行:/bin/sh first_shell.sh直接运行脚本，不需要执行权限，最终脚本执行显示效果一样。
+
+初学者学习Shell编程，可以将在Shell终端运行的各种命令依次写入到脚本内容中，可以把Shell脚本当成是Shell命令的堆积。
+
+
+
+
