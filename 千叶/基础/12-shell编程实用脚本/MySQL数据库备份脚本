@@ -1,0 +1,21 @@
+MySQL数据库备份是运维工程师的工作之一，如下为自动备份Mysql数据库脚本。
+#!/bin/bash
+#auto backup mysql
+#By author jfedu.net2017
+#Define PATH定义变量
+BAK_DIR=/data/backup/mysql/`date+%Y-%m-%d`
+MYSQLDB=webapp
+MYSQLPW=backup
+MYSQLUSR=backup
+#must use root user run scripts 必须使用root用户运行，$UID为系统变量
+if [ $UID -ne 0 ];then
+  echo "This script must use the root user!!!"
+  exit 0
+fi
+#Define DIR and mkdir DIR判断目录是否存在，不存在则新建
+if [ ！-d $BAKDIR ];then
+  mkdir -p $BAKDIR
+fi
+# Use mysqldump backup Databases
+/usr/bin/mysqldump -u $MYSQLUSR -p$MYSQLPW -d $MYSQLDB > $BAKDIR/webapp_db.sql
+echo "The mysql backup successfully"
