@@ -177,6 +177,106 @@ ansible -k 192.168.149.* -m user -a "name=jfeduhome=/tmp/ shell=/sbin/nologin"
 ansible -k 192.168.149.* -m user -a "name=jfedu state=absent force=yes"
 
 
+Ansible cron模块实战:
+Ansible cron模块主要用于添加、删除、更新操作系统Crontab任务计划，Cron模块使用详解：
+name  任务计划名称；
+cron_file  替换客户端该用户的任务计划的文件；
+minute  分（0-59，*，*/2）；
+hour  时（0-23，*，*/2）；
+day  日（1-31，*，*/2）；
+month  月（1-12，*，*/2）；
+weekday  周（0-6或1-7，*）；
+job  任何计划执行的命令，state要等于present；
+backup  是否备份之前的任务计划；
+user  新建任务计划的用户；
+state  指定任务计划present、absent。
+
+Ansible cron模块企业常用案例如下：
+（1）Ansible cron模块操作，基于cron模块，创建crontab任务计划，执行结果如图7-35所示：
+ansible -k all -m cron -a "minute=0 hour=0 day=* month=* weekday=* name='Ntpdate server for sync time' job='/usr/sbin/ntpdate 139.224.227.121'"
+
+（2）Ansible cron模块操作，基于cron模块，备份crontab任务计划，backup=yes表示开启备份，备份文件存放于客户端/tmp/，执行结果如图7-36所示：
+ansible -k all -m cron -a "minute=0 hour=0 day=* month=* weekday=* name='Ntpdate server for sync time' backup=yes job='/usr/sbin/ntpdate pool.ntp.org'"
+
+（3）Ansible cron模块操作，基于cron模块，删除crontab任务计划，执行结果如图7-37所示：
+ansible -k all -m cron -a "name='Ntpdate server for sync time' state=absent"
+
+
+Ansible synchronize模块实战:
+Ansible synchronize模块主要用于目录、文件同步，基于Rsync命令同步目录，Synchronize模块使用详解：
+compress  开启压缩，默认为开启；
+archive  是否采用归档模式同步，保证源和目标文件属性一致；
+checksum  是否效验；
+dirs  以非递归的方式传输目录；
+links  同步链接文件；
+recursive  是否递归yes/no；
+rsync_opts  使用rsync的参数；
+copy_links  同步的时候是否复制连接；
+delete  删除源中没有而目标存在的文件；
+src  源目录及文件；
+dest  目标目录及文件;
+dest_port  目标接受的端口；
+rsync_path  服务的路径，指定rsync命令来在远程服务器上运行；
+rsync_timeout  指定rsync操作的IP超时时间；
+set_remote_user  设置远程用户名；
+--exclude=.log  忽略同步.log结尾的文件；
+mode  同步的模式，rsync同步的方式PUSH、PULL，默认都是推送push。
+
+Ansible synchronize模块企业常用案例如下：
+（1）Ansible synchronize模块操作，src源目录、dest目标目录，执行结果如图7-38所示：
+ansible -k all -m synchronize -a 'src=/tmp/ dest=/tmp/'
+
+（2）Ansible synchronize模块操作，src源目录、dest目标目录、compress=yes开启压缩、delete=yes数据一致、rsync_opts同步参数、--exclude排除文件，执行结果如图7-39所示：
+ansible -k all -m synchronize -a 'src=/tmp/ dest=/tmp/ compress=yes delete=yes rsync_opts=--no-motd,--exclude=.txt'
+
+
+Ansibleshell模块实战:
+Ansibleshell模块主要用于远程客户端上执行各种Shell命令或者运行脚本，远程执行命令通过/bin/sh环境来执行，支持比command更多的指令，Shell模块使用详解：
+Chdir  执行命令前，切换到目录；
+Creates  当该文件存在时，则不执行该步骤；
+Executable  换用shell环境执行命令；
+Free_form  需要执行的脚本；
+Removes  当该文件不存在时，则不执行该步骤；
+Warn  如果在ansible.cfg中存在告警，如果设定了False，不会警告此行。
+
+Ansible shell模块企业常用案例如下：
+（1）Ansible shell模块操作，-mshell指定模块为shell，远程执行Shell脚本，远程执行脚本也可采用script模块。并把执行结果追加至客户端服务器/tmp/var.log文件，执行结果如图7-40所示：
+ ansible -k all -m shell -a "/bin/sh/tmp/variables.sh >>/tmp/var.log"
+ 
+（2）Ansible shell模块操作，远程执行创建目录命令，执行之前切换在/tmp目录，屏蔽警告信息，执行结果如图7-41所示：
+ ansible -k all -m shell -a "mkdir -p `date+%F` chdir=/tmp/ state=directory warn=no"
+
+（3）Ansible shell模块操作，-m shell指定模块为shell，远程客户端查看http进程是否启动，执行结果如图7-42所示：
+ ansible -k all -m shell -a "ps -ef|grep http"
+ 
+（4）Ansible shell模块操作，-m shell指定模块为shell，远程客户端查看crontab任务计划，执行结果如图7-43所示：
+ ansible -k all -m shell -a "crontab -l"
+ 
+ 
+Ansible service模块实战:
+Ansibleservice模块主要用于远程客户端各种服务管理，包括启动、停止、重启、重新加载等，service模块使用详解：
+enabled  是否开启启动服务；
+name  服务名称；
+runlevel  服务启动级别；
+arguments  服务命令行参数传递；
+state  服务操作状态，状态包括started,stopped,restarted,reloaded。
+
+Ansible service模块企业常用案例如下：
+（1）Ansible service模块操作，远程重启httpd服务，执行结果如图7-44所示：
+ansible -k all -m service -a "name=httpd state=restarted"
+
+（2）Ansible service模块操作，远程重启网卡服务，指定参数eth0，执行结果如图7-45所示：
+ansible -k all -m service -a "name=network args=eth0 state=restarted"
+
+（3）Ansible service模块操作，远程开机启动nfs服务，设置3,5级别自动启动，执行结果如图7-46所示：
+ansible -k all -m service -a "name=nfs enabled=yes runlevel=3,5"
+
+
+ 
+
+
+
+
 
 
 
