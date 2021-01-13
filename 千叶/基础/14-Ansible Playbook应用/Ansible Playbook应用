@@ -1,0 +1,114 @@
+如上使用Ad-hoc方式点对点命令执行，可以管理远程主机，如果服务器数量很多，配置信息比较多，还可以利用AnsiblePlaybook编写剧本、从而以非常简便的方式实现任务处理的自动化与流程化。
+
+Playbook由一个或多个"play"组成的列表，play的主要功能Ansible中的Task定义好的角色，指定剧本对应的服务器组。
+
+从根本上说，Task是一个任务，Task调用Ansible各种模块module，将多个paly组织在一个playbook剧本中，然后组成一个非常完整的流程控制集合。
+
+基于Ansible Playbook还可以收集命令、可以创建任务集，这样能够大大降低管理工作的复杂程度，Playbook采用YAML语法结构，易于阅读、方便配置。
+
+YAML（YetAnotherMarkupLanguage），是一种直观的能够被电脑识别的数据序列化格式，是一个可读性高并且容易被人类阅读，容易和脚本语言交互，用来表达资料序列的编程语言。它参考了其它多种语言，包括：XML、C语言、Python、Perl以及电子邮件格式RFC2822，是类似于标准通用标记语言的子集XML的数据描述语言，语法比XML简单很多。
+
+YAML使用空白字符和分行来分隔资料，适合用grep、Python、Perl、Ruby操作。
+
+（1）YAML语言特性如下：
+可读性强；
+和脚本语言的交互性好；
+使用实现语言的数据类型；
+一致的信息模型；
+易于实现；
+可以基于流来处理；
+可扩展性强。
+
+（2）Playbooks组建包括如下：
+Target  定义playbook的远程主机组；
+Variable  定义playbook使用的变量；
+Task  定义远程主机上执行的任务列表；
+Handler  定义task执行完成以后需要调用的任务，例如配置文件被改动，则启动handler任务重启相关联的服务。
+
+（3）Target常用参数如下：
+hosts  定义远程主机组；
+user  执行该任务的用户；
+sudo  设置为yes的时候，执行任务的时候使用root权限；
+sudo_user  指定sudo普通用户；
+connection  默认基于SSH连接客户端；
+gather_facks  获取远程主机facts基础信息。
+
+（4）Variable常用参数如下：
+vars  定义格式，变量名:变量值；
+vars_files  指定变量文件；
+vars_prompt  用户交互模式自定义变量；
+setup  模块去远程主机的值；
+
+（5）Task常用参数如下：
+name  任务显示名称也即屏幕显示信息；
+action  定义执行的动作；
+copy  复制本地文件到远程主机；
+template  复制本地文件到远程主机，可以引用本地变量；
+service  定义服务的状态。
+
+Ansible playbook案例演示如下：
+（1）远程主机安装NginxWEB服务，playbook代码如下，执行结果如图7-47所示：
+-hosts:all
+  remote_user:root
+  tasks:
+  -name:JfeduPcre-develandZlibLIBInstall.
+    yum: name=pcre-devel,pcre,zlib-develstate=installed
+  -name:Jfedu Nginx WEB Server Install Process.
+    shell: cd /tmp;rm -rf nginx-1.12.0.tar.gz;wget http://nginx.org/download/nginx-1.12.0.tar.gz;tar xzf nginx-1.12.0.tar.gz;cd nginx-1.12.0;./configure --prefix=/usr/local/nginx;make;make install
+    
+（2）检测远程主机Nginx目录是否存在，不存在则安装NginxWEB服务，安装完并启动Nginx，playbook代码如下，执行结果如图7-48所示：
+-hosts:all
+  remote_user:root
+  tasks:
+    -name:Nginx server Install 2017
+      file:path=/usr/local/nginx/ state=directory
+      notify:
+        -nginx install
+        -nginx start
+  handlers:
+    -name:nginx install
+      shell: cd /tmp;rm-rf nginx-1.12.0.tar.gz;wget http://nginx.org/download/nginx-1.12.0.tar.gz;tar xzf nginx-1.12.0.tar.gz;cd nginx-1.12.0;./configure --prefix=/usr/local/nginx;make;make install
+    -name:nginx start
+      shell:/usr/local/nginx/sbin/nginx
+      
+（3）检测远程主机内核参数配置文件是否更新，如果更新则执行命令sysctl –p使内核参数生效，playbook代码如下，执行结果如图7-49所示：
+-hosts:all
+  remote_user:root
+  tasks:
+    -name:Linux kernel config 2017
+      copy:src=/data/sh/sysctl.conf dest=/etc/
+      notify:
+        -source sysctl
+  handlers:
+    -name:source sysctl
+      shell:sysctl -p
+      
+ （4）基于列表items多个值创建用户，通过{{}}定义列表变量，with_items选项传入变量的值，执行结果如图7-50（a）、7-50（b）所示：
+ -hosts:all
+  remote_user:root
+  tasks:
+  -name:Linux system Add User list.
+    user:name={{item}} state=present
+    with_items:
+      -jfedu1
+      -jfedu2
+      -jfedu3
+      -jfedu4
+      
+ （5）Ansible Playbook可以自定义template模板文件，模板文件主要用于服务器需求不一致的情况，需要独立定义的，例如两台服务器安装了Nginx，安装完毕之后将服务器A的HTTP端口改成80，服务器B的HTTP端口改成81，基于tempalte模块轻松实现，
+ 方法步骤如下：
+    
+
+
+
+
+
+
+
+
+
+
+
+
+
+
