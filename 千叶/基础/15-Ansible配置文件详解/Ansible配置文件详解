@@ -1,0 +1,55 @@
+Ansible默认配置文件为/etc/ansible/ansible.cfg，配置文件中可以对ansible进行各项参数的调整，包括并发线程、用户、模块路径、配置优化等，如下为Ansible.cfg常用参数详解：
+[defaults]  通用默认配置段；
+inventory  =/etc/ansible/hosts  被控端IP或者DNS列表；
+library  =/usr/share/my_modules/  Ansible默认搜寻模块的位置；
+remote_tmp=$HOME/.ansible/tmp  Ansible远程执行临时文件；
+pattern=*  对所有主机通信；
+forks=5  并行进程数；
+poll_interval=15  回频率或轮训间隔时间；
+sudo_user=rootsudo  远程执行用户名；
+ask_sudo_pass=True  使用sudo，是否需要输入密码；
+ask_pass=True  是否需要输入密码；
+transport=smart  通信机制；
+remote_port=22  远程SSH端口；
+module_lang=C  模块和系统之间通信的语言；
+gathering=implicit  控制默认facts收集（远程系统变量）；
+roles_path=/etc/ansible/roles  用于playbook搜索Ansible roles；
+host_key_checking=False  检查远程主机密钥；
+#sudo_exe=sudo  sudo远程执行命令；
+#sudo_flags=-H  传递sudo之外的参数；
+timeout=10  SSH超时时间；
+remote_user=root  远程登陆用户名；
+log_path=/var/log/ansible.log  日志文件存放路径；
+module_name=command  Ansible命令执行默认的模块；
+#executable=/bin/sh  执行的Shell环境，用户Shell模块；
+#hash_behaviour=replace  特定的优先级覆盖变量；
+#jinja2_extensions  允许开启Jinja2拓展模块；
+#private_key_file=/path/to/file  私钥文件存储位置；
+#display_skipped_hosts=True  显示任何跳过任务的状态；
+#system_warnings=True  禁用系统运行ansible潜在问题警告；
+#deprecation_warnings=True  Playbook输出禁用“不建议使用”警告；
+#command_warnings=False  command模块Ansible默认发出警告；
+#nocolor=1  输出带上颜色区别，开启/关闭：0/1；
+pipelining=False  开启pipeSSH通道优化；
+[accelerate]  accelerate缓存加速。
+accelerate_port=5099
+accelerate_timeout=30
+accelerate_connect_timeout=5.0
+accelerate_daemon_timeout=30
+accelerate_multi_key=yes
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
