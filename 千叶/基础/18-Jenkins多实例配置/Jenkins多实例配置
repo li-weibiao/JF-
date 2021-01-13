@@ -1,0 +1,103 @@
+单台Jenkins服务器可以满足企业测试环境及生产环境使用Jenkins自动部署+测试平台，如果每天更新发布多个WEB网站，Jenkins需要同时处理很多的任务。
+基于Jenkins分布式，也即多Slave方式可以缓解Jenkins服务器的压力，Jenkins多实例架构如图7-81所示，可以在Windows、Linux、MAC等操作系统上执行Slave。
+
+Jenkins多Slave原理是将原本在JenkinsMaster端的构建项目分配给Slave端去执行，JenkinsMaster分配任务时，JenkinsMaster端通过SSH远程Slave，在Slave端启动slave.jar程序，通过Slave.jar实现对网站工程的构建编译以及自动部署。所以在Slave端服务器必须安装JavaJDK环境来执行Master端分配的构建任务。配置多Slave服务器方法和步骤如下：
+
+（1）在Slave服务器，创建远程执行Jenkins任务的用户，名称为jenkins，Jenkins工作目录/home/Jenkins，JenkinsMaster免秘钥登录Slave服务器或者通过用户名和密码登录Slave；
+
+（2）Slave服务器安装JAVAJDK版本，并将其软件路径加入系统环境变量。
+
+（3）Jenkinsmaster端平台添加管理节点，系统管理管理节点新建节点输入节点名称，分别如图7-82（a）、7-82（b）、7-82（c）所示：
+
+（4）配置www_slave节点，指定其Jenkins编译工作目录，设置IP地址，CredentialsAdd添加登录Slave用户名和密码，如图7-83（a）、7-83（b）所示：
+
+（5）JenkinsSlave配置完毕，查看SLAVE状态如如图7-84所示：
+
+（6）单击www_slave节点，然后选择launchsalveagent，单击测试SlaveAgent是否正常工作，如图7-85所示：
+
+（7）出现如图7-86（a）、7-86（b）所示，即证明Slave添加成功：
+
+（8）如上配置完毕，Jenkins-master通过ssh方式来启动slave的slave.jar脚本，java–jarslave.jar，Slave等待master端的任务分配，单击www.jfedu.net，然后选择立即构建，如图7-87所示：
+
+（9）Jenkins+Slave配置完毕后，如果同时运行多个任务，会发现只会运行一个任务，另外的任务在等待，那需要怎么调整呢，需要配置JOB工程勾选“在必要的时候并发构建”即可，如图7-88（a）、7-88（b）所示：
+
+
+Jenkins+Ansible高并发构建:
+Jenkins自动部署基于Shell+For循环方式部署10台以下的JAVA客户端服务器，效率是可以接受的，但是如果是大规模服务器需要部署或者更新网站，通过for循环串行执行效率会大打折扣，所以需要考虑到并行机制。
+Ansible是一款极为灵活的开源工具套件，能够大大简化Unix管理员的自动化配置管理与流程控制方式。它利用推送方式对客户系统加以配置，这样所有工作都可在主服务器端完成。使用Ansible+Jenkins架构方式实现网站自动部署，满足上百台、千台服务器的网站部署和更新。
+Ansible服务需要部署在Jenkins服务器，客户端服务器无需安装Ansible。Ansible基于SSH工作，所以需提前做好免秘钥或者通过sudo用户远程更新网站。此处省略Ansible安装，Ansible相关知识请参考本书Ansible章节配置。
+Ansible自动部署网站，有两种方法，一种是基于Ansible远程执行Shell脚本，另外一种是Ansible编写Playbook剧本，实现网站自动部署。如下为Ansible+Shell脚本方式自动部署网站方法:
+
+（1）Jenkins服务器安装Ansible软件，RedHat、CentOS操作系统可以直接基于YUM工具自动安装Ansible，CentOS6.x或者CentOS7.x安装前，需先安装epel扩展源，代码如下：
+rpm -Uvh http://mirrors.ustc.edu.cn/fedora/epel/6/x86_64/epel-release-6-8.noarch.rpm
+yum install epel-release -y
+yum install ansible -y
+
+（2）添加客户端服务器，在/etc/ansible/hosts中添加需要部署的客户端IP列表，如下代码：
+[www_jfedu]
+139.199.228.59
+139.199.228.60
+139.199.228.61
+139.199.228.62
+
+（3）Jenkins平台首页单击www.jfedu.net项目选择配置单击PostStepsExecuteshellCommand输入如下代码，www_jfedu为AnsibleHosts组模块名称：
+cp /root/.jenkins/workspace/www.jfedu.net/target/edu.war /root/.jenkins/jobs/www.jfedu.net/builds/lastSuccessfulBuild/archive/target/
+ansible www_jfedu -m copy -a "src=/data/sh/auto_deploy.sh dest=/tmp/"
+ansible www_jfedu-mshell -a "cd/tmp;/bin/bashauto_deploy.sh"
+
+（4）Jenkins服务器端/data/sh/auto_deploy.sh Shell脚本内容如下：
+#!/bin/bash
+#Auto deploy Tomcat for jenkins
+#By author jfedu.net2017
+export JAVA_HOME=/usr/java/jdk1.6.0_25
+TOMCAT_PID=`/usr/sbin/lsof-n-P-t-i:8081`
+TOMCAT_DIR="/usr/local/tomcat/"
+FILES="edu.war"
+DES_DIR="/usr/local/tomcat/webapps/ROOT/"
+DES_URL="http://139.224.227.121:7001/job/www.jfedu.net/lastSuccessfulBuild/artifact/target/"
+BAK_DIR="/export/backup/`date+%Y%m%d-%H%M`"
+[ -n "$TOMCAT_PID" ] && kill -9 $TOMCAT_PID
+cd $DES_DIR
+rm -rf $FILES
+mkdir -p $BAK_DIR;\cp-a$DES_DIR/*$BAK_DIR/
+rm -rf $DES_DIR/*
+wget $DES_URL/$FILES
+/usr/java/jdk1.6.0_25/bin/jar -xvf $FILES
+####################
+cd $TOMCAT_DIR;rm-rf work
+/bin/sh $TOMCAT_DIR/bin/start.sh
+sleep 10
+tail -n 50 $TOMCAT_DIR/logs/catalina.out
+
+（5）单击www.jfedu.net构建任务，查看控制台信息，如图7-89（a）、7-89（b）、7-89（c）所示：
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
