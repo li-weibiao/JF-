@@ -97,8 +97,31 @@ Ansible playbook案例演示如下：
       
  （5）Ansible Playbook可以自定义template模板文件，模板文件主要用于服务器需求不一致的情况，需要独立定义的，例如两台服务器安装了Nginx，安装完毕之后将服务器A的HTTP端口改成80，服务器B的HTTP端口改成81，基于tempalte模块轻松实现，
  方法步骤如下：
-    
+ 1.Ansible hosts文件指定不同服务器不同httpd_port端口，代码如下：
+[web]
+192.168.149.128 httpd_port=80
+192.168.149.129 httpd_port=81
 
+2.Ansible创建nginx.confjinja2模板文件，cpnginx.confnginx.conf.j2，并修改listen80为listen{{httpd_port}}，Nginx其他配置项不变，代码如下：
+cp nginx.conf nginx.conf.j2
+listen{{httpd_port}};
+
+3.Ansible playbook剧本yaml文件创建，代码如下：
+-hosts:all
+  remote_user:root
+  tasks:
+    -name:Nginx server Install 2017
+      file:path=/usr/local/nginx/ state=directory
+      notify:
+        -nginx install
+        -nginx config
+      handlers:
+        -name:nginx install
+          shell: cd /tmp;rm -rf nginx-1.12.0.tar.gz;wget http://nginx.org/download/nginx-1.12.0.tar.gz;tar xzf nginx-1.12.0.tar.gz;cd nginx-1.12.0;./configure --prefix=/usr/local/nginx;make;make install
+        -name:nginx config
+          template: src=/data/sh/nginx.conf.j2 dest=/usr/local/nginx/conf/nginx.conf
+          
+4.Ansibleplaybook执行剧本文件，如图7-51（a）、7-51（b）、7-51（c）所示：          
 
 
 
