@@ -15,8 +15,243 @@ Jenkins持续集成简介:
   持续集成保障了每个时间点上团队成员提交的代码是能成功集成的。换言之，任何时间点都能第一时间发现软件的集成问题，使任意时间发布可部署的软件成为了可能；
   持续集成还能利于软件本身的发展趋势，这点在需求不明确或是频繁性变更的情景中尤其重要，持续集成的质量能帮助团队进行有效决策，同时建立团队对开发产品的信心。
   
+
+Jenkins持续集成组件:
+自动构建过程JOB，JOB的功能主要是：获取SVN/GIT源码、自动编译、自动打包、部署分发和自动测试等；
+源代码存储库，开发编写代码需上传至SVN、GIT代码库中，供Jenkins来获取；
+Jenkins持续集成服务器，用于部署JenkinsUI、存放JOB工程、各种插件、编译打包的数据等。
+
+
+Jenkins平台安装部署:
+Jenkins官网免费获取Jenkins软件，官网地址为：http://mirrors.jenkins-ci.org/下载稳定的Jenkins版本。由于Jenkins是基于Java开发的一种持续集成工具，所以Jenkins服务器需安装JAVAJDK开发软件。Jenkins平台搭建步骤如下：
+（1）Jenkins稳定版下载：
+http://updates.jenkins-ci.org/download/war/1.651.2/jenkins.war
+
+（2）官网下载JAVAJDK，并解压安装，代码如下：
+tar -xzf jdk-7u25-linux-x64.tar.gz;mkdir -p /usr/java/;mv jdk1.7.0_25/ /usr/java/
+
+（3）配置JAVA环境变量，/etc/profile配置文件中末尾加入如下代码：
+  export JAVA_HOME=/usr/java/jdk1.7.0_25
+  export CLASSPATH=$CLASSPATH:$JAVA_HOME/lib:$JAVA_HOME/jre/lib
+  export PATH=$JAVA_HOME/bin:$JAVA_HOME/jre/bin:$PATH:$HOMR/bin
   
-  
+ 执行如下代码使其环境变量，并查看环境变量，命令如下：
+ source /etc/profile
+ java --version
+ 
+ （4）Tomcat JAVA容器配置
+ wget http://mirror.bit.edu.cn/apache/tomcat/tomcat-6/v6.0.53/bin/apache-tomcat-6.0.53.tar.gz
+ tar xzf apache-tomcat-6.0.53.tar.gz
+ mv apache-tomcat-6.0.53 /usr/local/tomcat
+ 
+（5）Tomcat发布Jenkins，将Jenkins war拷贝至Tomcat默认发布目录，并使用jar工具解压，启动Tomcat服务即可，代码如下：
+rm-rf /usr/local/tomcat/webapps/*
+mkdir -p /usr/local/tomcat/webapps/ROOT/
+mv jenkins.war /usr/local/tomcat/webapps/ROOT/
+cd /usr/local/tomcat/webapps/ROOT/
+jar –xvf jenkins.war; rm-rf Jenkins.war
+sh /usr/local/tomcat/bin/startup.sh
+
+（6）通过客户端浏览器访问Jenkins服务器IP地址，如图7-58所示：
+
+
+Jenkins相关概念:
+要熟练掌握Jenkins持续集成的配置、使用和管理，需要了解相关的概念，例如代码开发、编译、打包、构建等名称概念，常见的代码相关概念包括：MAKE、ANT、MAVEN、Eclipse、Jenkins等。
+（1）Make编译工具
+Make编译工具是Linux和Windows最原始的编译工具，在Linux下编译程序常用make，Windows下对应的工具为nmake。读取本地makefile文件，该文件决定了源文件之间的依赖关系，Make负责根据makefile文件去组织构建软件，负责指挥编译器如何编译，连接器如何连接，以及最后生成可用二进制的代码。
+
+（2）Ant编译工具
+Make工具在编译比较复杂的工程使用起来不方便，语法很难理解，延伸出Ant工具。Ant工具属于Apache基金会软件成员之一，是一个将软件编译、测试、部署等步骤联系在一起加以自动化的一个工具，大多用于Java环境中的软件开发。
+Ant构建文件是XML文件。每个构建文件定义一个唯一的项目(Project元素)。每个项目下可以定义很多目标元素，这些目标之间可以有依赖关系.
+构建一个新的项目时，首先应该编写Ant构建文件。因为构建文件定义了构建过程，并为团队开发中每个人所使用。
+Ant构建文件默认名为build.xml，也可以取其他的名字。只不过在运行的时候需把这个命名当作参数传给Ant。构建文件可以放在任何的位置，一般做法是放在项目顶层目录也即根目录，这样可以保持项目的简洁和清晰。
+
+（3）Maven编译工具
+Maven工具是对ant工具的进一步改进，在make工具中，如果我们要编译某些源文件，首先要安装编译器等工具。有时候需要不同版本的编译器，在java的编译器需要不同的各种包的支持，如果把每个包都下载下来，在makefile中进行配置制定，当需要的包非常多时，很难管理。
+Maven与Ant类似，也是个构建(build)工具，它是如何调用各种不同的编译器连接器呢？使用Mavenplugin(maven插件），Maven项目对象模型POM(ProjectObjectModel)，可以通过一小段描述信息来管理项目的构建，报告和文档的软件项目管理工具。
+Maven除了以程序构建能力为特色之外，还提供高级项目管理工具。
+POM是Maven项目中的文件，使用XML表示，名称为pom.xml。在Maven中，当构建Project的时候，不仅仅是一堆包含代码的文件。还包含pom.xml配置文件，该文件包括Project与开发者有关的、缺陷跟踪系统、组织与许可、项目的URL、项目依赖、以及其他配置。
+在基于Maven构建编译时，project可以什么都没有，甚至没有代码，但是必须包含pom.xml文件。由于Maven的缺省构建规则有较高的可重用性，所以常常用两三行Maven构建脚本就可以构建简单的项目。
+由于Maven的面向项目的方法，许多ApacheJakarta项目发文时使用Maven，而且公司项目采用Maven的比例在持续增长。
+
+（4）Jenkins框架工具
+Maven可以实现对软件代码进行编译、打包、测试，功能已经很强大了，那还需要Jenkins做什么呢？Maven可以控制编译，控制连接，可以生成各种报告，可以进行代码测试。
+但是默认不能控制完整的流程？没有顺序定义，是先编译还是先连接？先进行代码测试，还是先生成报告？可以使用脚本来对Maven进行控制，实现这些流程的控制。
+
+（5）Eclipse工具
+Eclipse是一个开放源代码的、基于Java的可扩展开发平台。就其本身而言，它只是一个框架和一组服务，用于通过插件组件构建开发环境。Eclipse附带了一个标准的插件集，包括Java开发工具（JavaDevelopmentKit，JDK），主要用于开发者开发网站代码。
+
+
+Jenkins平台设置:
+Jenkins持续基础平台部署完毕，需要进行简单配置，例如配置JAVA路径、安装Maven、指定SVN、GIT仓库地址等，如下为JAVA路径和Maven设置步骤：
+（1）Jenkins服务器安装Maven：
+wget http://mirrors.tuna.tsinghua.edu.cn/apache/maven/maven-3/3.3.9/binaries/apache-maven-3.3.9-bin.tar.gz
+tar -xzf apache-maven-3.3.9-bin.tar.gz
+mv apache-maven-3.3.9 /usr/maven/
+
+（2）Jenkins系统设置环境变量，如图7-59（a）、7-59（b）所示：
+
+（3）Jenkins系统设置完毕，需创建job工程：
+Jenkins平台首页创建一个新任务填入Item名称“构建一个maven项目”单击OK，如图7-60所示：
+
+（4）创建完JOB任务，需对其任务进行配置，如图7-61所示：
+
+（5）单击www.jfedu.net工程名配置进入JOB工程详细配置源码管理选择Subversion配置SVN仓库地址，如果报错需要输入SVN用户名和密码，如图7-62所示：
+
+
+源码管理，SVN代码迁出参数详解如下：
+Respository url配置SVN仓库地址；
+Local module directory  存储SVN源码的路径；
+Ignore externals option  忽略额外参数；
+Check-outStrategy  代码检出策略；
+Repository browser  仓库浏览器，默认Auto；
+add more locations  源码管理，允许下载多个地址的代码；
+Repository depth  获取SVN源码的目录深度，默认为infinity；
+empty：不检出项目的任何文件，files：所有文件，immediates：目录第一级，infinity：整个目录所有文件。
+
+
+（6）配置Maven编译参数，BuildGoalsandoptions输入“cleaninstall-Dmaven.test.skip=true”，此处为maven自动编译、打包并跳过单元测试选项，如图7-63所示。
+
+Maven工具常用命令如下：
+mvn clean  打包清理（删除target目录内容）；
+mvn compile  编译项目；
+mvn package  打包发布；
+mvn package-Dmaven.test.skip=ture  打包时跳过测试。
+
+通过以上步骤的配置步骤，即完成了JOB工程的创建。
+
+
+Jenkins构建JOB工程:
+JenkinsJOB工程创建完毕，如下直接运行构建，Jenkins将从SVN仓库获取SVN代码，然后通过Maven编译、打包，并最终生成可以使用的war包即可。操作步骤如下：
+（1）单击www.jfedu.net工程名，进入JOB工程详细配置界面，单击“立即构建”，如图7-64所示：
+
+（2）查看BuildHistory，单击最新一次百分比滚动条任务，如图7-65所示：
+
+（3）进入JOB工程编译详细页面，单击“ConsoleOutput”，如图7-66所示：
+
+（4）查看Jenkins构建实时日志，如图7-67（a）、7-67（b）所示：
+
+控制台日志打印“Finished:SUCCESS”，则表示Jenkins持续集成构建完成，会在Jenkins服务器目录www.jfedu.net工程名目录下生产网站可用的war文件，将该war包部署至其他服务器即可，war路径为：/root/.jenkins/workspace/www.jfedu.net/target/edu.war。
+
+至此，Jenkins持续集成平台自动构建软件完成，该步骤只是生成了war包，并没有实现自动将该war包部署至其他服务器，如果要自动部署需要基于Jenkins插件或者基于Shell、Python等自动化部署脚本。
+
+
+Jenkins自动化部署:
+如上通过手动构建JenkinsJOB工程，自动编译、打包生成war包，并不能实现自动部署，如需要实现自动部署可以基于自动部署插件或者Shell脚本、Python脚本等。
+
+如下以Shell脚本实现Jenkins自动部署war至其他多台服务器，并自动启动Tomcat，实现最终WEB浏览器访问。Jenkins自动部署完整操作步骤如下：
+
+（1）单击www.jfedu.net工程名配置构建后操作Addpost-buildstepArchivetheartifacts用于存档的文件输入：**/target/*.war，该选项主要用于Jenkins编译后会将war包存档一份到target目录，该文件可以通过JenkinsTomcat的HTTP端口访问，如图7-68（a）、7-68（b）所示：
+
+（2）Jenkins构建完毕，访问Jenkinswar存档的文件，URL地址如下：
+http://139.224.227.121:7001/job/www.jfedu.net/lastSuccessfulBuild/artifact/target/edu.war
+
+（3）选择Addpost-buildstepExecuteshellCommand输入如下代码，实现Jenkinsedu.war包自动部署，如下为139.199.228.59客户端单台服务器部署edu.war，如果多台可以使用ip.txt列表，将IP加入至ip.txt，通过for循环实现批量部署，如图7-69（a）、7-69（b）所示：
+cp /root/.jenkins/workspace/www.jfedu.net/target/edu.war /root/.jenkins/jobs/www.jfedu.net/builds/lastSuccessfulBuild/archive/target/
+ssh root@139.199.228.59'bash-x-s'</data/sh/auto_deploy.sh
+#for I in`catip.txt`;do ssh root@${I}'bash-x-s'<
+/data/sh/auto_deploy.sh;done
+
+（4）基于Jenkins将edu.war自动部署至139.199.228.59服务器Tomcat发布目录，需提前配置登录远程客户端免秘钥，免秘钥配置首先在Jenkins服务器执行ssh-keygen命令，然后按Enter键生成公钥和私钥；然后将公钥id_rsa.pub拷贝至客户端/root/.ssh/目录，并重命名为authorized_keys，操作命令如下：
+ssh-keygen -t rsa-P'' -f /root/.ssh/id_rsa
+ssh-copy-id-i /root/.ssh/id_rsa.pub 139.199.228.59
+
+（5）Shell脚本需放在Jenkins服务器/data/sh/，无需放在客户端，Shell脚本内容如下：
+#!/bin/bash
+#Auto deploy Tomcat for jenkins
+#By author jfedu.net2017
+export JAVA_HOME=/usr/java/jdk1.6.0_25
+TOMCAT_PID=`/usr/sbin/lsof-n-P-t-i:8081`
+TOMCAT_DIR="/usr/local/tomcat/"
+FILES="edu.war"
+DES_DIR="/usr/local/tomcat/webapps/ROOT/"
+DES_URL="http://139.224.227.121:7001/job/www.jfedu.net/lastSuccessfulBuild/artifact/target/"
+BAK_DIR="/export/backup/`date+%Y%m%d-%H%M`"
+[ -n "$TOMCAT_PID" ] && kill -9 $TOMCAT_PID
+cd $DES_DIR
+rm -rf $FILES
+mkdir -p $BAK_DIR;\cp-a$DES_DIR/*$BAK_DIR/
+rm -rf $DES_DIR/*
+wget $DES_URL/$FILES
+/usr/java/jdk1.6.0_25/bin/jar -xvf $FILES
+####################
+cd $TOMCAT_DIR;rm-r fwork
+/bin/sh $TOMCAT_DIR/bin/start.sh
+sleep 10
+tail -n 50 $TOMCAT_DIR/logs/catalina.out
+
+如上通过Shell+For循环可以实现网站简单的异步部署，如果需要将Jenkinsedu.war包批量快速部署至100台、500台服务器，该如何去实现呢？后续小结会讲解到。
+
+
+Jenkins插件安装:
+Jenkins最大的功能莫过于插件丰富，基于各种插件可以满足各项需求，Jenkins本身是一个框架，真正发挥作用的是各种插件。Jenkins默认自带很多插件，如果需添加新插件，可以在Jenkins平台主页面进行操作，操作步骤如下：
+Jenkins平台首页系统管理管理插件可选插件搜索email-ext-plugin插件选择并安装，如果没有该插件，则需单击“高级”，手动上传插件并安装，操作步骤如图7-70所示：
+
+访问Jenkins官网手动下载插件，将下载的插件传到服务器Jenkins根目录（/root、）下的plugins目录，即/root/.jenkins/plugins目录，重启jenkins即可。Jenkins插件下载地址：https://wiki.jenkins-ci.org/display/JENKINS/Plugins。安装Email-ext-Plugin邮件插件的方法如下：
+（1）下载Email-ext和Token-macro、Email-template，可以搜索某个插件，输入插件名称，如图7-71所示：
+
+（2）Email-ext和Token-macro、Email-template插件下载URL如下：
+https://wiki.jenkins-ci.org/display/JENKINS/Email-ext+plugin
+https://wiki.jenkins-ci.org/display/JENKINS/Token+Macro+Plugin
+https://wiki.jenkins-ci.org/display/JENKINS/Email-ext+Template+Plugin
+
+（3）安装Token-macro插件，如图7-72（a）、7-72（b）所示：
+
+（4）安装email-ext插件，如图7-73所示：
+
+（5）Email-ext、Token-macro和Email-template插件安装完毕，如图7-74所示：
+
+（6）Email插件安装完毕，Jenkins主界面系统管理系统设置会出现选项ExtendedE-mailNotification，则表示JenkinsEmail邮件插件安装完毕，如图7-75所示：
+
+如需安装GIT、PublishOver插件或者安装装Jenkins其他任意插件，方法与Email插件安装方法一致。
+
+
+Jenkins邮件配置:
+如上Jenkins持续集成配置完毕，可以进行网站代码的自动更新、部署、升级及回滚操作，通过控制台信息可以查看每个JOB工程构建的状态。
+如果网站项目很多，人工去查看状态就变得不可取，可以借助JenkinsEmail插件实现网站构建完成，自动发送邮件给相应的开发人员、运维人员或者测试人员。Jenkins发送邮件，需安装Email邮件插件，Email-ext、Token-macro和Email-template，JenkinsEmail邮件配置常见参数：
+SMTP server  邮件服务器地址；
+Default Content Type  内容展现的格式，一般选择HTML；
+Default Recipients  默认收件人；
+Use SMTP Authentication  使用SMTP身份验证；
+UserName  邮件发送账户的用户名；
+Password  邮件发送账户的密码；
+SMTP port  SMTP服务器端口。
+
+Jenkins Email邮件配置方法如下：
+（1）设置Jenkins邮件发送者，Jenkins平台首页系统管理系统设置JenkinsLocation填写JenkinsURL与系统管理员邮件地址，如图7-76（a）、7-76（b）所示：
+
+（2）设置发送邮件的SMTP服务器、邮箱后缀，发送类型html、接收者或者抄送者，单击Jenkins平台首页系统管理系统设置ExtendedE-mailNotification，填写如图7-77所示的选项，包括SMTPserver、默认后缀、使用SMTP认证、DefaultRecipients邮件接收人等信息：
+
+（3）设置邮件的标题DefaultSubject内容如下：
+构建通知：$PROJECT_NAME-Build # $BUILD_NUMBER-$BUILD_STATUS
+
+（4）设置发送邮件的内容，DefaultContent内容如下：
+<hr/>
+<h3>(本邮件是程序自动下发的，请勿回复！)</h3><hr/>
+项目名称：$PROJECT_NAME<br/><hr/>
+构建编号：$BUILD_NUMBER<br/><hr/>
+构建状态：$BUILD_STATUS<br/><hr/>
+触发原因：${CAUSE}<br/><hr/>
+构建日志地址：<ahref="${BUILD_URL}console">${BUILD_URL}console</a><br/><hr/>
+构建地址：<ahref="$BUILD_URL">$BUILD_URL</a><br/><hr/>
+变更集:${JELLY_SCRIPT,template="html"}<br/>
+<hr/>
+
+（5）每个JOB工程邮件设置，单击www.jfedu.netJOB名称配置构建后操作选择EditableEmailNotification，如下信息保持默认，出现如图7-78所示：
+
+（6）选择AdvancedSettings，设置Trigger阀值，选择发送邮件的触发器，默认触发器包括：第一次构建、构建失败、总是发送邮件、构建成功等，一般选择always总是发送邮件，发送给developers组，如图7-79所示。
+
+（7）Jenkins构建邮件验证，如图7-80（a）、7-80（b）、7-80（c）所示：
+
+
+
+
+
+
+
+
+
+
 
 
 
