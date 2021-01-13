@@ -1,0 +1,194 @@
+Ansible与Saltstack均是基于Python语言开发，Ansible只需要在一台普通的服务器上运行即可，不需要在客户端服务器上安装客户端。因为Ansible是基于SSH远程管理，而Linux服务器大都离不开SSH，所以Ansible不需要为配置工作添加额外的支持。
+
+Ansible安装使用非常简单，而且基于上千个插件和模块实现各种软件、平台、版本的管理，支持虚拟容器多层级的部署。很多读者在使用Ansible工具时，认为Ansible比Saltstatck执行效率慢，其实不是软件本身慢，是由于SSH服务慢，可以优化SSH连接速度及使用Ansible加速模块，满足企业上万台服务器的维护和管理。
+
+Ansible是一款极为灵活的开源工具套件，能够大大简化Unix管理员的自动化配置管理与流程控制方式。它利用推送方式对客户系统加以配置，这样所有工作都可在主服务器端完成。其命令行机制同样非常强大，允许大家利用商业许可WebUI实现授权管理与配置。.
+
+可以通过命令行或者GUI来使用Ansible，运行Ansible的服务器这里俗称“管理节点”；通过Ansible进行管理的服务器俗称“受控节点”。权威媒体报道Ansible于2015年被RedHat公司1.5亿美元收购，新版RedHat内置Ansible软件。
+
+本书以Ansible为案例，基于Ansible构建企业自动化运维平台，实现大规模服务器的快速管理和部署。Ansible将平常复杂的配置工作变得简单，变得更加标准化更容易控制。
+
+Ansible自动运维管理工具优点：
+轻量级，更新时，只需要在操作机上进行一次更新即可；
+采用SSH协议；
+不需要去客户端安装agent；
+批量任务执行可以写成脚本，而且不用分发到远程就可以执行；
+使用python编写的，维护更简单；
+支持sudo普通用户命令；
+去中心化管理。
+
+
+Ansible管理工具安装配置:
+Ansible可以工作在Linux、BSD、MacOSX等平台，对Python环境的版本最低要求为Python2.6以上，如果操作系统Python软件版本为2.4，需要升级方可使用Ansible工具。
+RedHat、CentOS操作系统可以直接基于YUM工具自动安装Ansible，CentOS6.x或者CentOS7.x安装前，需先安装epel扩展源，代码如下：
+
+rpm -Uvh http://mirrors.ustc.edu.cn/fedora/epel/6/x86_64/epel-release-6-8.noarch.rpm
+yum install epel -release -y
+yum install ansible -y
+
+Ansible工具默认主目录为：/etc/ansible/，其中hosts文件为被管理机IP或者主机名列表，ansible.cfg为ansible主配置文件，roles为角色或者插件路径，默认该目录为空，
+
+Ansible远程批量管理，其中执行命令是通过Ad-Hoc来完成，也即点对点单条执行命令，能够快速执行，而且不需要保存执行的命令。默认hosts文件配置主机列表，可以配置分组，可以定义各种ip及规则
+
+Ansible基于多模块管理，常用的Ansible工具管理模块包括：command、shell、script、yum、copy、File、async、docker、cron、mysql_user、ping、sysctl、user、acl、add_host、easy_install、haproxy等。
+
+可以使用ansible-doc –l|more查看ansible支持的模块，也可以查看每个模块的帮助文档，ansible-doc module_name
+
+
+Ansible工具参数详解:
+基于Ansible批量管理之前，需将被管理的服务器IP列表添加至/etc/ansible/hosts文件中，如图7-19添加4台被管理端IP地址，分成web和db两组，本机也可以是被管理机。
+
+基于Ansible自动运维工具管理客户端案例操作，由于Ansible管理远程服务器基于SSH，在登录远程服务器执行命令时需要远程服务器的用户名和密码，也可以加入-k参数手动输入密码或者基于ssh-keygen生成免秘钥。
+
+Ansible自动化批量管理工具主要参数如下：
+-v,–verbose  打印详细模式；
+-iPATH,–inventory=PATH  指定host文件路径；
+-fNUM,–forks=NUM  指定fork开启同步进程的个数，默认5；
+-mNAME,–module-name=NAME  指定module名称，默认模块command；
+-aMODULE_ARGSmodule  模块的参数或者命令；
+-k,–ask-pass  输入远程被管理端密码；
+–sudo  基于sudo用户执行；
+-K,–ask-sudo-pass  提示输入sudo密码与sudo一起使用；
+-uUSERNAME,–user=USERNAME  指定移动端的执行用户；
+-C,–check  测试执行过程，不改变真实内容，相当于预演；
+-TTIMEOUT,  执行命令超时时间，默认为10秒；
+--version  查看Ansible软件版本信息。
+
+
+Ansibleping模块实战:
+Ansible最基础的模块为ping模块，主要用于判断远程客户端是否在线，用于ping本身服务器，返回值为changed、ping。
+Ansibleping模块企业常用案例如下：
+（1）Ansibleping服务器状态，如图7-20所示：
+ansible -k all -m ping
+
+
+Ansiblecommand模块实战:
+Ansiblecommand模块为ansible默认模块，主要用于执行Linux基础命令，可以执行远程服务器命令执行、任务执行等操作。Command模块使用详解：
+Chdir  执行命令前，切换到目录；
+Creates  当该文件存在时，则不执行该步骤；
+Executable  换用shell环境执行命令；
+Free_form  需要执行的脚本；
+Removes  当该文件不存在时，则不执行该步骤；
+Warn  如果在ansible.cfg中存在告警，如果设定了False，不会警告此行。
+
+
+Ansiblecommand模块企业常用案例如下：
+（1）Ansiblecommand模块远程执行date命令，执行结果如图7-21所示：
+ansible -k -i /etc/ansible/hosts all -m command -a "date"
+
+（2）Ansible command模块远程执行ping命令，执行结果如图7-22所示：
+ansible -k all -m command -a "ping -c 1 www.baidu.com"
+
+（3）Ansible Hosts正则模式远程执行df-h，执行结果如图7-23所示：
+ansible -k 192.168.149.13* -m command -a "df-h"
+
+
+Ansiblecopy模块实战:
+Ansiblecopy模块主要用于文件或者目录拷贝，支持文件、目录、权限、用户组功能，copy模块使用详解：
+src  Ansible端源文件或者目录，空文件夹不拷贝；
+content  用来替代src，用于将指定文件的内容，拷贝到远程文件内；
+dest  客户端目标目录或者文件，需要绝对路径；
+backup  拷贝之前，先备份远程节点上的原始文件；
+directory_mode  用于拷贝文件夹，新建的文件会被拷贝，而老旧的不会被拷贝；
+follow  支持link文件拷贝；
+force  覆盖远程主机不一致的内容；
+group  设定远程主机文件夹的组名；
+mode  指定远程主机文件及文件及的权限；
+owner  设定远程主机文件夹的用户名。
+
+Ansiblecopy模块企业常用案例如下：
+（1）Ansiblecopy模块操作，src表示源文件，dest表示目标目录或者文件，owner指定拥有者，执行结果如图7-24所示：
+ansible -k all -m copy -a 'src=/etc/passwd dest=/tmp/ mode=755 owner=root'
+
+（2）Ansiblecopy模块操作，content文件内容，dest目标文件，owner指定拥有者，执行结果如图7-25所示：
+ansible -k all -m copy -a 'content="HelloWorld" dest=/tmp/jfedu.txt mode=755 owner=root'
+
+（3）Ansiblecopy模块操作，content文件内容，dest目标文件，owner指定拥有者，backup=yes开启备份，执行结果如图7-26所示：
+ansible -k all -m copy -a 'content="HelloWorld" dest=/tmp/jfedu.txt backup=yes mode=755 owner=root'
+
+
+Ansible yum模块实战:
+Ansible yum模块主要用于软件的安装、升级、卸载，支持红帽.rpm软件的管理，YUM模块使用详解：
+conf_file  设定远程yum执行时所依赖的yum配置文件
+disable_gpg_check  安装软件包之前是否坚持gpgkey；
+name  需要安装的软件名称，支持软件组安装；
+update_cache  安装软件前更新缓存；
+enablerepo  指定repo源名称；
+skip_broken  跳过异常软件节点；
+state  软件包状态，包括：installed、present、latest、absent、removed；
+
+Ansible yum模块企业常用案例如下：
+（1）Ansibleyum模块操作，name表示需安装的软件名称，state表示状态，常见state=installed表示安装软件，执行结果如图7-27所示：
+ansible all -k -m yum -a "name=sysstat,screen state=installed"
+
+（2）Ansibleyum模块操作，name表示需安装的软件名称，state表示状态，常见state=installed表示安装软件，执行结果如图7-28所示：
+ansible all -k -m yum -a "name=sysstat,screen state=absent"
+
+（3）Ansibleyum模块操作，name表示需安装的软件名称，state表示状态，常见state=installed，表示安装软件，disable_gpg_check=no不检查key，执行结果如图7-29所示：
+ansible 192.168.149.129 -k -m yum -a "name=sysstat,screen state=installed disable_gpg_check=no"
+
+
+Ansiblefile模块实战:
+Ansiblefile模块主要用于对文件的创建、删除、修改、权限、属性的维护和管理，File模块使用详解：
+src  Ansible端源文件或者目录；
+follow  支持link文件拷贝；
+force  覆盖远程主机不一致的内容；
+group  设定远程主机文件夹的组名；
+mode  指定远程主机文件及文件及的权限；
+owner  设定远程主机文件夹的用户名。
+path  目标路径，也可以用dest,name代替；
+state  状态包括：file、link、directory、hard、touch、absent；
+attributes  文件或者目录特殊属性；
+
+Ansible file模块企业常用案例如下：
+（1）Ansiblefile模块操作，path表示目录的名称和路径，state=directory表示创建目录，执行结果如图7-30所示：
+ansible -k 192.168.* -m file -a "path=/tmp/`date+%F` state=directory mode=755"
+
+（2）Ansible file模块操作，path表示目录的名称和路径，state=touch表示创建文件，执行结果如图7-31所示：
+ansible -k 192.168.* -m file -a "path=/tmp/jfedu.txt state=touch mode=755"
+
+
+Ansibleuser模块实战:
+Ansibleuser模块主要用于操作系统用户、组、权限、密码等操作，user模块使用详解：
+system  默认创建为普通用户，为yes则创建系统用户；
+append  添加一个新的组；
+comment  新增描述信息；
+createhome  给用户创建家目录；
+force 用于删除强制删除用户；
+group  创建用户主组；
+groups  将用户加入组或者附属组添加；
+home  指定用户的家目录；
+name  表示状态，是否create、remove、modify；
+password  指定用户的密码，此处为加密密码；
+remove  删除用户；
+shell  设置用户的shell登录环境；
+uid  设置用户id；
+update_password  修改用户密码;
+state  用户状态，默认为present表示新建用户。
+
+Ansible user模块企业常用案例如下：
+（1）Ansible user模块操作，name表示用户名称，home表示其家目录，执行结果如图7-32所示：
+ansible -k 192.168.149.* -m user -a "name=jfeduhome=/tmp/"
+
+（2）Ansible user模块操作，name表示用户名称，home表示其家目录，执行结果如图7-33所示：
+ansible -k 192.168.149.* -m user -a "name=jfeduhome=/tmp/ shell=/sbin/nologin"
+
+（3）Ansible user模块操作，name表示用户名称，state=absent表示删除用户，执行结果如图7-34所示：
+ansible -k 192.168.149.* -m user -a "name=jfedu state=absent force=yes"
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
