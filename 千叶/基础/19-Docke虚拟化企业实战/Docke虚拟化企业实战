@@ -1,0 +1,166 @@
+Docker虚拟化有三个概念需要理解，分别镜像、容器、仓库。
+镜像：Docker的镜像其实就是模板，跟我们常见的ISO镜像类似，是一个样板。
+容器：使用镜像常见的应用或者系统，我们称之为一个容器。
+仓库：仓库是存放镜像的地方，分为公开仓库（Public）和私有仓库（Private）两种形式。
+
+
+Docker虚拟化特点:
+操作启动快
+轻量级虚拟化
+开源免费
+前景及云支持
+
+
+Docker引擎架构:
+docker引擎是一个C/S结构的应用
+
+
+Docker安装配置：
+本文主要讲解如何在Centos6.x系列服务器安装，默认docker只有在Centos6.5以上机器才能使用yum直接安装，如果其他版本需要安装centos扩展源epel。
+Centos6.x系列安装docker软件，首先要关闭selinux，然后需要安装相应的epel源，如下：
+sed -i '/SELINUX/s/enforcing/disabled/g' /etc/selinux/config
+wget http://ftp.riken.jp/Linux/fedora/epel/6/x86_64/epel-release-6-8.noarch.rpm
+rpm -ivh epel-release-6-8.noarch.rpm
+yum install lxc libcgroup device-mapper-event-libs
+
+然后安装docker：
+#yum install docker-io
+#yum install device-mapper* -y
+
+安装完后：
+启动docker进程：/etc/init.d/docker start
+查看docker进程：ps -ef|grep docker
+
+
+Docker典型命令演练：
+要使用docker虚拟化，需要下载镜像，使用docker命令启动，为了好让大家理解，这里直接利用docker启动centos系统。公共仓库下载centos镜像：
+docker pull centos
+
+常用命令详解：
+docker version  #查看版本
+docker search centos  #搜索可用docker镜像
+docker images  查看当前docker所有镜像
+docker pull centos  #下载镜像
+cat centos.tar|docker import - centos6_newname  #Docker导入镜像
+docker export 容器_id >cenos6.tar  #Docker导出镜像
+docker run centos echo "helloword"  #在docker容器中运行helloworld!
+docker run  centosyum install ntpdate  #在容器中安装ntpdate的程序
+docker ps -l  命令获得最后一个容器的id
+docker ps -a  查看所有的容器。
+
+运行docker commit提交刚修改的容器，例如：
+docker commit 2313132 centos:v1
+docker run -i -t -d centos/bin/bash  在容器里启动一个/bin/bash shell环境，可以登录进入操作，其中-t tty，表示打开一个终端的意思，-i interactive，表示可以交互输入,-d表示在后台启动，以daemon方式启动。
+docker run -d centos:v1/bin/bash
+Docker stop id  关闭容器
+Docker start id  启动某个容器
+docker rm id  删除容器
+docker rmi images  删除镜像
+docker run -d -p 80:80 -p8022:22 centos:v2  解析：-p指定容器启动后docker上运行的端口映射及容器里运行的端口，80:80，第一个80表示docker系统上的80，第二个80表示docker虚拟机里面的端口。用户默认访问本机80端口，自动映射到容器里面的80端口。
+docker exec -it id /bin/bash  进入容器终端
+docker exec id ifconfig  查看容器的IP地址；
+Docker inspect id|grep -i ipaddr  查看容器IP地址；
+Docker exec df -h  查看容器的磁盘分区信息；
+
+
+Docker网络深入剖析:
+基于Dockerrun创建Docker容器时，可以使用--net选项指定容器的网络模式，Docker默认有以下四种网络模式：
+host模式，使用--net=host指定；
+container模式，使用--net=container:NAME_or_ID指定；
+none模式，使用--net=none指定；,
+bridge模式，使用--net=bridge指定，默认设置；
+
+1)Host模式详解：
+默认Docker容器运行会分配独立的Network Namespace隔离子系统，基于host模式，容器将不会获得一个独立的NetworkNamespace，而是和宿主机共用一个NetworkNamespace，容器将不会虚拟出自己的网卡，配置自己的IP等，而是使用宿主机的IP和端口。
+
+2)Container模式详解：
+熟悉了host模式，Container模式也非常好理解，Container模式指定新创建的容器和已经存在的一个容器共享一个NetworkNamespace，而不是和宿主机共享。
+即新创建的容器不会创建自己的网卡，配置自己的IP，而是和一个指定的容器共享IP、端口范围等。同样两个容器除了网络方面相同之外，其他的如文件系统、进程列表等还是隔离的。
+
+3)None模式详解：
+None模式与其他的模式都不同，如果处于None模式，Docker容器拥有自己的NetworkNamespace，但是并不为Docker容器进行任何网络配置。也就是说该Docker容器没有网卡、IP、路由等信息，需要手工为Docker容器添加网卡、配置IP等，典型Pipework工具为Docker容器指定IP等信息；
+
+4)Bridge桥接模式
+Bridge模式是Docker默认的网络模式，该模式会为每一个容器分配NetworkNamespace、设置IP、路由等配置，默认会将Docker容器连接到一个虚拟网桥交换机Docker0上。本文采用Bridge模式，如下为桥接模式拓扑图：
+
+
+CentOS7.xDocker桥接网络实战:
+Docker默认提供了一个隔离的内网环境，启动时会建立一个docker0的虚拟网卡，每个容器都是连接到docker0网卡上的。而docker0的ip段为172.17.0.1，如果想让容器与宿主机同一网段的其他机器访问，就必须在启动docker的时候将某个端口映射到宿主机的端口。
+KVM的桥接网络非常方便，其实docker也比较方便，至少不是自带的桥接而已，上次课程我们讲解了docker容器在centos6.5下的实现方法，今天我们来讲解centos7下如果快速实现docker容器桥接网络，并为容器分配外网IP。如下为通过pipework工具配置容器IP方法：
+安装pipework
+git clone https://github.com/jpetazzo/pipework
+cp ~/pipework/pipework/usr/local/bin/
+启动容器并设置网络
+docker run -itd --net=none --name=lamp2 centos7/bin/bash
+pipework br0 lamp2 192.168.1.11/24@192.168.1.88
+进入容器查看ip
+docker exe lamp2 ifconfig
+
+
+Dockerfile企业案例演练:
+由于Docker官网公共仓库镜像大多不完整，无法真正满足企业的生产环境系统，此时需要我们自行定制镜像或者重新打包镜像。
+Docker镜像制作是管理员的必备工作之一，Docker镜像制作的方法主要有两种，制作方法如下：
+Docker commit|export 将新容器提交至Images列表；
+编写Dockerfile，bulid新的镜像至镜像列表；
+
+企业生产环境推荐使用Dockerfile制作镜像，Dockerfile制作原理，将基于一个基础镜像，通过编写Dockerfile方式，将各个功能进行叠加，最终形成新的Docker镜像，是目前互联网企业中打包镜像最为推荐的方式。
+
+Dockerfile是一个镜像的表示，也是一个镜像的原材料，可以通过Dockerfile来描述构建镜像，并自动构建一个容器。
+
+如下为DockerFile制作镜像，必备的指令和参数的详解：
+FROM  指定所创建镜像的基础镜像;
+MAINTAINER  指定维护者信息;
+RUN  运行命令;
+CMD  指定启动容器时默认执行的命令;
+LABEL  指定生成镜像的元数据标签信息;
+EXPOSE  声明镜像内服务所监听的端口;
+ENV  指定环境变量;
+ADD  赋值指定的<src>路径下的内容到容器中的<dest>路径下，
+<src>  可以为URL；如果为tar文件，会自动解压到<dest>路径下
+COPY  赋值本地主机的<scr>路径下的内容到容器中的<dest>路径下；一般情况下推荐使用COPY而不是ADD;
+ENTRYPOINT  指定镜像的默认入口;
+VOLUME  创建数据挂载点;
+USER  指定运行容器时的用户名或UID;
+WORKDIR  配置工作目录;
+ARG  指定镜像内使用的参数(例如版本号信息等);
+ONBUILD  配置当前所创建的镜像作为其他镜像的基础镜像时，所执行的创建操作的命令;
+STOPSIGNAL  容器退出的信号;
+HEALTHCHECK  如何进行健康检查;
+SHELL  指定使用SHELL时的默认SHELL类型;
+
+
+Dockerfile语法命令详解二:
+FROM  指定所创建的镜像的基础镜像，如果本地不存在，则默认会去DockerHub下载指定镜像。
+格式为：FROM<image>，或FROM<image>:<tag>，或FROM<image>@<digest>。任何Dockerfile中的第一条指令必须为FROM指令。并且，如果在同一个Dockerfile文件中创建多个镜像，可以使用多个FROM指令(每个镜像一次)。
+MAINTAINER指定维护者信息，格式为MAINTAINER<name>。
+例如：
+MAINTAINERimage_creator@docker.com
+该信息将会写入生成镜像的Author属性域中。
+RUN运行指定命令。
+格式为：RUN<command>或RUN["executable","param1","param2"]。
+注意：后一个指令会被解析为json数组，所以必须使用双引号。前者默认将在shell终端中运行命令，即/bin/sh-c；后者则使用exec执行，不会启动shell环境。
+指定使用其他终端类型可以通过第二种方式实现，例如：
+RUN ["/bin/bash","-c","echohello"]
+每条RUN指令将在当前镜像的基础上执行指定命令，并提交为新的镜像。当命令较长时可以使用\换行。例如：
+RUN apt-get update\
+&& apt-get install -y libsnappy -dev zliblg-dev libbz2-dev\
+&& rm-rf /var/cache/apt
+CMD用来指定启动容器时默认执行的命令。它支持三种格式：
+CMD["executable","param1","param2"]使用exec执行，是推荐使用的方式；
+CMD param1 param2在/bin/sh中执行，提供给需要交互的应用；
+CMD["param1","param2"]提供给ENTRYPOINT的默认参数。
+每个Dockerfile只能有一条CMD命令。如果指定了多条命令，只有最后一条会被执行。入股用户启动容器时指定了运行的命令(作为run的参数)，则会覆盖掉CMD指定的命令。
+LABEL指令用来生成用于生成镜像的元数据的标签信息。
+格式为：LABEL<key>=<value><key>=<value><key>=<value>...。
+例如：
+LABELversion="1.0"
+……
+（ 后面的没有弄完，有需要就翻JF文档）
+
+
+
+
+
+
+
+
