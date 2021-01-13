@@ -1,0 +1,94 @@
+Ansible企业实战环境中，如果管理的服务器越来越多，Ansibe执行效率会变得比较慢，可以通过优化Ansible提供工作效率，由于Ansible基于SSH协议通信，SSH连接慢会导致整个基于Ansible执行变得缓慢，也需要对Openssh进行优化，具体优化的方法如下：
+（1）AnsibleSSH关闭秘钥检测
+默认以SSH登录远程客户端服务器，会检查远程主机的公钥(publickey)，并将该主机的公钥记录在~/.ssh/known_hosts文件中。下次访问相同主机时，OpenSSH会核对公钥，如果公钥不同，OpenSSH会发出警告，如果公钥相同，则提示输入密码。
+SSH对主机的public_key的检查等级是根据StrictHostKeyChecking变量来设定的，StrictHostKeyChecking检查级别包括：no（不检查）、ask（询问）、yes（每次都检查）、False（关闭检查）.
+Ansible配置文件中加入如下代码，即可关闭StrictHostKeyChecking检查：
+host_key_checking=False
+
+（2）OpenSSH连接优化
+使用OpenSSH服务时，默认服务器端配置文件UseDNS=YES状态，该选项会导致服务器根据客户端的IP地址进行DNSPTR反向解析，得到客户端的主机名，然后根据获取到的主机名进行DNS正向A记录查询，并验证该IP是否与原始IP一致。关闭DNS解析代码如下：
+sed -i '/^GSSAPI/s/yes/no/g;/UseDNS/d;/Protocol/aUseDNSno' /etc/ssh/sshd_config
+
+/etc/init.d/sshd restart
+
+（3）SSH pipelining加速Ansible
+SSHpipelining是一个加速Ansible执行速度的简单方法，SSHpipelining默认是关闭的，关闭是为了兼容不同的sudo配置，主要是requiretty选项。
+如果不使用Sudo建议开启该选项，打开此选项可以减少Ansible执行没有文件传输时，SSH在被控机器上执行任务的连接数。使用Sudo操作的时候,必须在所有被管理的主机上将配置文件/etc/sudoers中requiretty选项禁用.
+sed -i '/^pipelining/s/False/True/g' /etc/ansible/ansible.cfg
+
+（4）AnsibleFacts缓存优化
+Ansible-playbook在执行过程中，默认会执行Gatherfacts，如果不需要获取客户端的fact数据的话，可以关闭获取fact数据功能，关闭之后可以加快ansible-playbook的执行效率。如需关闭fact功能，在playbookyaml文件中加入如下代码即可：
+gather_facts:nogather_facts:no
+
+Ansiblefacts组件主要用于收集客户端设备的基础静态信息，这些信息可以在做配置管理的时候方便引用。Facts信息直接当做AnsiblePlaybook变量信息进行引用，通过定制facts以便收集我们想要的信息，同时可以通过Facter和Ohai来拓展facts信息，也可以将facts信息存入Redis缓存中，如下为Facts使用Redis缓存的步骤。
+
+1.部署Redis服务
+wget http://download.redis.io/releases/redis-2.8.13.tar.gz
+tar zxf redis-2.8.13.tar.gz
+cd redis-2.8.13
+make PREFIX=/usr/local/redis install
+cp redis.conf /usr/local/redis/
+
+将/usr/local/redis/bin/目录加入至环境变量配置文件/etc/profile末尾，然后Shell终端执行source/etc/profile让环境变量生效。
+export PATH=/usr/local/redis/bin:$PATH
+
+启动及停止Redis服务命令：
+nohup /usr/local/redis/bin/redis-server /usr/local/redis/redis.conf &
+
+2.安装Python Redis模块
+easy_install pip
+pip install redis
+
+3.Ansible整合Redis配置
+在配置文件/etc/ansible/ansible.cfg中defaluts段中加入代码，如果redis密码为admin，则开启admin密码行：
+gathering=smart
+fact_caching=redis
+fact_caching_timeout=86400
+fact_caching_connection=localhost:6379
+#fact_caching_connection=localhost:6379:0:admin
+
+4.测试Redis缓存
+Ansible-playbook执行nginx_wget.yaml剧本文件，如图7-52所示：
+ansible-playbook nginx_wget.yaml
+
+检查Redis服务器，factskey已存入Redis中，如图7-53所示：
+# redis-cli
+> KEYS *
+
+（5）ControlPersist SSH优化
+ControlPersist特性需要高版本的SSH支持，CentOS6默认是不支持的，如果需要使用，需要自行升级Openssh。
+ControlPersist即持久化的Socket，一次验证多次通信。并且只需要修改SSH客户端配置，也即Ansible被管理主机。
+可使用YUM或者源码编译升级OpenSSH服务，升级完毕ControlPersist的设置办法如下，在其用户的家目录创建config文件，如果ansible以root用户登录客户端，至需要在客户端的/root/.ssh/config目录中添加如下代码即可：
+Host *
+Compression yes
+ServerAliveInterval 60
+ServerAliveCountMax 5
+ControlMaster auto
+ControlPath ~/.ssh/sockets/%r@%h-%p
+ControlPersist 4h
+
+开启ControlPersist特性后，SSH在建立sockets后，节省了每次验证和创建的时间，对Ansible执行速度提升是非常明显的。
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
